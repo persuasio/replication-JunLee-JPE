@@ -1,0 +1,1116 @@
+--------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.02-17.01.32.log.txt
+  log type:  text
+ opened on:   2 Nov 2022, 17:01:32
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  2 Nov 2022 17:01:32
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 17
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 23 Aug 2022
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.5.1
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 17
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * Figures
+. *   Figure 2: Employee Participation Rates in the iThrive Workplace Wellness Program
+. *   Figure 3: Pre-Intervention Medical Spending among Treatment Group, by Participation Status
+. *   Figures 5a-5c: Post-Intervention Medical Spending by Treatment Status
+. do "$Persuasion/scripts/table2.do"
+
+. ************
+. * SCRIPT:   table2.do
+. * PURPOSE:  Creates Table 2
+. ************
+. 
+. use "$Persuasion/data/ChenYang2019.dta", clear
+file /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/data/ChenYang2019.dta not found
+r(601);
+
+end of do-file
+r(601);
+
+end of do-file
+
+r(601);
+
+. do "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/table2.do"
+
+. ************
+. * SCRIPT:   table2.do
+. * PURPOSE:  Creates Table 2
+. ************
+. 
+. use "$Persuasion/data/ChenYang2019/ChenYang2019.dta", clear
+
+. 
+. matrix results = J(1, 5, .)
+
+. qui reg active_user treatment_vpnonly treatment_nlonly treatment_vpnnl, r
+
+. local share_compliers = _b[treatment_vpnnl]
+
+.                         
+.         // persuasion rates for panel variables
+.         foreach Y in info_foreign_website ///   A.1.2 Ranked high: foreign websites
+>                                  info_freq_website_for ///      A.1.6 Freq. of visiting foreign websites for info.
+>                                  az_belief_media_value ///      A.3 Valuation of access to foreign media outlets
+>                                  az_belief_media_trust ///      A.4 Trust in non-domestic media outlets
+>                                  bias_domestic ///                      A.5.1 Degree of censorship on domestic news outl
+> ets     
+>                                  bias_foreign ///       A.5.2 Degree of censorship on foreign news outlets      
+>                                  az_belief_media_justif /// A.6 Censorship unjustified
+>                                  bias_dom_govt_policy_t1 ///  A.7.1 Domestic cens. driven by govt. policies
+>                                  bias_for_govt_policy_t1 /// A.7.2 Foreign cens. driven by govt. policies
+>                 {
+  2.                                 
+.                 qui reg `Y'_w3_p treatment_vpnonly treatment_nlonly treatment_vpnnl, r
+  3.                 qui summ `Y'_w1_p if treatment_vpnnl == 1
+  4.                 local persuasion_DK = _b[treatment_vpnnl]/(`share_compliers'*(1-`r(mean)'))
+  5.                                 
+.                 persuasio apr `Y'_w3_p active_user treatment_vpnnl ///
+>                                         if (treatment_main == 1) | (treatment_main == 3), ///
+>                                         method("bootstrap") nboot(10)
+  6. 
+.                 matrix pers_res = (e(apr_est) \ e(apr_ci))
+  7.                 
+.                 persuasio lpr `Y'_w3_p active_user treatment_vpnnl ///
+>                                         if (treatment_main == 1) | (treatment_main == 3), ///
+>                                         method("bootstrap") nboot(10)
+  8.                                         
+.                 matrix CY = (`persuasion_DK' \ .)                       
+  9.                 matrix pers_res = (pers_res, ( (e(lpr_est), .) \ e(lpr_ci)))
+ 10.                 matrix results = results \ ( CY , pers_res)
+ 11.                                 
+.                 }
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: info_foreign_website_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb info_foreign_website_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub info_foreign_website_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .219048  .684354    .207305  .725268 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: info_foreign_website_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz info_foreign_website_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .409669              .23223  .490129 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: info_freq_website_for_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb info_freq_website_for_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub info_freq_website_for_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .555256  .766192    .506158  .781767 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: info_freq_website_for_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz info_freq_website_for_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .703689             .649638  .752682 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: az_belief_media_value_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb az_belief_media_value_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub az_belief_media_value_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .492549  .821452    .441717  .840654 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: az_belief_media_value_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz az_belief_media_value_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .733946             .673605  .800457 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: az_belief_media_trust_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb az_belief_media_trust_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub az_belief_media_trust_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate |  .62923  .858065    .596544  .906549 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: az_belief_media_trust_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz az_belief_media_trust_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .815947              .76496  .827805 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_domestic_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb bias_domestic_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub bias_domestic_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .350944  .734821    .303551  .761597 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_domestic_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz bias_domestic_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .569601             .502194  .621595 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_foreign_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb bias_foreign_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub bias_foreign_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .390769  .743874    .312614  .779436 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_foreign_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz bias_foreign_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .604069             .563397  .655556 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: az_belief_media_justif_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb az_belief_media_justif_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub az_belief_media_justif_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate |  .31564  .666418     .22319  .715044 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: az_belief_media_justif_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz az_belief_media_justif_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .486182             .447981  .542166 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_dom_govt_policy_t1_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb bias_dom_govt_policy_t1_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub bias_dom_govt_policy_t1_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .749583  .886174     .58835  .932194 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_dom_govt_policy_t1_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz bias_dom_govt_policy_t1_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .868167             .814612  .907986 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_for_govt_policy_t1_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb bias_for_govt_policy_t1_w3_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub bias_for_govt_policy_t1_w3_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .369238  .763464    .177724  .885078 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: bias_for_govt_policy_t1_w3_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz bias_for_govt_policy_t1_w3_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .609532             .502231   .66073 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+
+. 
+.         // persuasion rates for non-panel variables
+.         foreach Y in ///                   
+>         vpn_purchase_wmt_record ///       A.2.1 Purchase discounted tool we offered
+>         vpn_purchase_yes ///              A.2.2 Purchase any tool
+>         {
+  2.                                 
+.                 qui reg `Y'_p treatment_vpnonly treatment_nlonly treatment_vpnnl, r
+  3.                 local persuasion_DK = _b[treatment_vpnnl]/(`share_compliers'*(1-_b[_cons]))
+  4.                                 
+.                 persuasio apr `Y'_p active_user treatment_vpnnl ///
+>                                         if (treatment_main == 1) | (treatment_main == 3), ///
+>                                         method("bootstrap") nboot(10)
+  5. 
+.                 matrix pers_res = (e(apr_est) \ e(apr_ci))
+  6.                 
+.                 persuasio lpr `Y'_p active_user treatment_vpnnl ///
+>                                         if (treatment_main == 1) | (treatment_main == 3), ///
+>                                         method("bootstrap") nboot(10)
+  7.                                         
+.                 matrix CY = (`persuasion_DK' \ .)                       
+  8.                 matrix pers_res = (pers_res, ( (e(lpr_est), .) \ e(lpr_ci)))
+  9.                 matrix results = results \ ( CY , pers_res)
+ 10.                                 
+.         }
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: vpn_purchase_wmt_record_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 833
+                                                           Replications  =  10
+
+      Command: aprlb vpn_purchase_wmt_record_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 833
+                                                           Replications  =  10
+
+      Command: aprub vpn_purchase_wmt_record_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .226652  .641509    .199819  .683099 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: vpn_purchase_wmt_record_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 833
+                                                           Replications  =  10
+
+      Command: lpr4ytz vpn_purchase_wmt_record_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .387344             .327641  .420419 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz: Causal inference on the Average Persuasion Rate
+ when outcome, instrument and instrument are observed
+ along with covariates
+-----------------------------------------------------------------
+ 
+ - Binary outcome: vpn_purchase_yes_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running aprlb on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprlb vpn_purchase_yes_p treatment_vpnnl, model("")
+         coef: e(lb_coef)
+(running aprub on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: aprub vpn_purchase_yes_p active_user treatment_vpnnl, model("")
+         coef: e(ub_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Bound Estimate      95% Conf. Interval
+-------------------------+----------------------------------------
+ Average Persuasion Rate | .495432   .85034    .447524  .881017 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+     The conf. level is one-sided for the lower and upper bounds separately.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+ 
+-----------------------------------------------------------------
+persuasio4ytz2lpr: Causal inference on the local persuasion rate
+ when outcome, instrument and instrument are observed
+-----------------------------------------------------------------
+ 
+ - Binary outcome: vpn_purchase_yes_p
+ - Binary treatment: active_user
+ - Binary instrument: treatment_vpnnl
+ - Covariates (if exist): 
+ - Regression model (if specified): 
+ 
+(running lpr4ytz on estimation sample)
+
+Bootstrap replications (10)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..........
+
+Bootstrap results                                          Number of obs = 886
+                                                           Replications  =  10
+
+      Command: lpr4ytz vpn_purchase_yes_p active_user treatment_vpnnl, model("")
+         coef: e(lpr_coef)
+ 
+------------------------------------------------------------------
+               Parameter | Estimate            95% Conf. Interval
+-------------------------+----------------------------------------
+   Local Persuasion Rate | .768002             .724041   .82293 
+------------------------------------------------------------------
+ 
+Note: 95% conf. interval is based on percentile bootstrap.
+ 
+Reference: Jun and Lee (2019), arXiv:1812.02276 [econ.EM]
+
+.         
+.         matrix results = results[2..23,1..5] 
+
+.         matrix results = results[1..4, 1..5] \ results[19..22, 1..5] \ results[5..18, 1..5]
+
+.         
+.         matrix results = 100*results
+
+.         
+.         frmttable using "Persuasion/results/table2", statmat(results) tex replace sdec(1) ///
+>         title("Table 2") ///
+>         ctitles("CY19", APR (LB), APR (UB), LPR, "")
+(note: file Persuasion/results/table2.tex not found)
+file could not be opened
+r(603);
+
+end of do-file
+
+r(603);
+
+. do "/var/folders/x8/k6zkc0lx26n8v33jzvdvv1qc0000gn/T//SD79647.000000"
+
+.         frmttable using "$Persuasion/results/table2", statmat(results) tex replace sdec(1) ///
+>         title("Table 2") ///
+>         ctitles("CY19", APR (LB), APR (UB), LPR, "")
+(note: file /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/results/table2.tex not found)
+                                                         Table 2
+                                        -----------------------------------------
+                                          CY19   APR (LB)  APR (UB)  LPR        
+                                        -----------------------------------------
+                                          35.5     21.9      68.4    41.0       
+                                                   20.7      72.5    23.2  49.0 
+                                          168.5    55.5      76.6    70.4       
+                                                   50.6      78.2    65.0  75.3 
+                                          45.6     22.7      64.2    38.7       
+                                                   20.0      68.3    32.8  42.0 
+                                          101.2    49.5      85.0    76.8       
+                                                   44.8      88.1    72.4  82.3 
+                                          121.7    49.3      82.1    73.4       
+                                                   44.2      84.1    67.4  80.0 
+                                          158.1    62.9      85.8    81.6       
+                                                   59.7      90.7    76.5  82.8 
+                                          82.3     35.1      73.5    57.0       
+                                                   30.4      76.2    50.2  62.2 
+                                          114.6    39.1      74.4    60.4       
+                                                   31.3      77.9    56.3  65.6 
+                                          77.6     31.6      66.6    48.6       
+                                                   22.3      71.5    44.8  54.2 
+                                          192.7    75.0      88.6    86.8       
+                                                   58.8      93.2    81.5  90.8 
+                                          54.1     36.9      76.3    61.0       
+                                                   17.8      88.5    50.2  66.1 
+                                        -----------------------------------------
+
+
+. 
+end of do-file
+
+. do "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/run.do"
+
+. **********************
+. * OVERVIEW
+. *   This script generates selected tables for the paper:
+. *       "IDENTIFYING THE EFFECT OF PERSUASION" (Sung Jae Jun and Sokbae Lee)
+. *   All data are stored in /data
+. *   All tables are outputted to /results
+. * 
+. * SOFTWARE REQUIREMENTS
+. *   Stata version 17 or newer
+. *
+. * TO PERFORM A CLEAN RUN, DELETE THE FOLLOWING FOLDER:
+. *   $Persuasion/results
+. *
+. * ACKNOWLEDGMENT
+. *       The structure of the replication files is forked from 
+. *   Illinois Workplace Wellness Study: Public Use Data Repository
+. *   at https://github.com/reifjulian/illinois-wellness-data
+. **********************
+. 
+. **********************
+. * Parameters defined by user
+. **********************
+. 
+. * "Persuasion" points to the root directory, which contains the subfolders "data" and "scripts"
+. global Persuasion "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files"
+
+. 
+. * Number of bootstraps for Table 2
+. * The published paper used nboot = 1000. Runtime is approximately ??? hours on a Windows 10 Desktop with Stata MP-6 and 
+> an i7-8700 CPU 3.20 GHz processor
+. * Use smaller value to run replication code faster. Runtime is approximately 1 minute with nboot = 2.
+. global nboot = 10
+
+. 
+. **********************
+. **********************
+. 
+. * Confirm that the global for the root directory has been defined
+. assert !missing("$Persuasion")
+
+. 
+. * Initialize log and record system parameters
+. clear 
+
+. set more off
+
+. cap mkdir "$Persuasion/scripts/logs"
+
+. cap log close

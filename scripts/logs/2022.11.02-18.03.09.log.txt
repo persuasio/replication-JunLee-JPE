@@ -1,0 +1,1015 @@
+--------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.02-18.03.09.log.txt
+  log type:  text
+ opened on:   2 Nov 2022, 18:03:09
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  2 Nov 2022 18:03:09
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 17
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 23 Aug 2022
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.5.1
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 17
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data.do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang2019", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. TABLE 3. Summary Statistics of the GKB Data
+. do "$Persuasion/scripts/table3.do"
+
+. ************
+. * SCRIPT:   table3.do
+. * PURPOSE:  Creates Table 3
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "publicdata.dta" is from Gerber, Karlan, and Bergan (2009, AEJ Applied).
+. ************
+. 
+. use "$Persuasion/data/GerberKarlanBergan2009/publicdata.dta", clear
+
+. 
+. **************************************
+. ****       Setup                 *****
+. **************************************
+. 
+. drop if times==1        /* drop observations with The Washing Times treatment */
+(950 observations deleted)
+
+. 
+. 
+. gen data_avail = 0      /* criterion to be included in the estimation sample */
+
+. replace data_avail = 1 if survey == 1 & !missing(voteddem_all) & !missing(readsome) 
+(701 real changes made)
+
+. 
+. keep if data_avail==1         /* keep observations in the estimation sample */
+(1,696 observations deleted)
+
+. 
+. *** two way tables by treatment ***
+. tab voteddem_all readsome if post == 1, matcell(treat)
+
+ Voted for |
+  Democrat |
+   in 2005 |
+       Gub |
+ election, | Reads paper at least
+  set to 0 |   several times per
+if did not |         week
+      vote |         0          1 |     Total
+-----------+----------------------+----------
+         0 |        94         93 |       187 
+         1 |        31         68 |        99 
+-----------+----------------------+----------
+     Total |       125        161 |       286 
+
+. 
+. frmttable using "$Persuasion/results/table3", statmat(treat) tex replace sdec(0) ///
+>         title("Table 3: The Washington Post (Z = 1)") ///
+>         ctitles("", "T=0", "T=1" )  ///
+>         rtitles("Y=0" \ "Y=1" )
+
+                                           Table 3: The Washington Post (Z = 1)
+                                                    -----------------
+                                                           T=0  T=1 
+                                                    -----------------
+                                                     Y=0   94   93  
+                                                     Y=1   31   68  
+                                                    -----------------
+
+
+. 
+. tab voteddem_all readsome if post == 0, matcell(control)
+
+ Voted for |
+  Democrat |
+   in 2005 |
+       Gub |
+ election, | Reads paper at least
+  set to 0 |   several times per
+if did not |         week
+      vote |         0          1 |     Total
+-----------+----------------------+----------
+         0 |       162        130 |       292 
+         1 |        46         77 |       123 
+-----------+----------------------+----------
+     Total |       208        207 |       415 
+
+. 
+. frmttable using "$Persuasion/results/table3", statmat(control) tex replace sdec(0) ///
+>         title("Table 3: Control (Z = 0)") ///
+>         ctitles("", "T=0", "T=1" )  ///
+>         rtitles("Y=0" \ "Y=1" ) 
+
+                                                 Table 3: Control (Z = 0)
+                                                    -----------------
+                                                           T=0  T=1 
+                                                    -----------------
+                                                     Y=0   162  130 
+                                                     Y=1   46   77  
+                                                    -----------------
+
+
+. 
+end of do-file
+
+. *   TABLE 4. Estimates of the Key Parameters
+. do "$Persuasion/scripts/table4.do"
+
+. ************
+. * SCRIPT:   table4.do
+. * PURPOSE:  Creates Table 4
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "publicdata.dta" is from Gerber, Karlan, and Bergan (2009, AEJ Applied).
+. ************
+. 
+. use "$Persuasion/data/GerberKarlanBergan2009/publicdata.dta", clear
+
+. 
+. **************************************
+. ****       Setup                 *****
+. **************************************
+. 
+. drop if times==1        /* drop observations with The Washing Times treatment */
+(950 observations deleted)
+
+. 
+. 
+. gen data_avail = 0      /* criterion to be included in the estimation sample */
+
+. replace data_avail = 1 if survey == 1 & !missing(voteddem_all) & !missing(readsome) 
+(701 real changes made)
+
+. 
+. keep if data_avail==1         /* keep observations in the estimation sample */
+(1,696 observations deleted)
+
+. 
+. gen   case_id = _n           /* generate Case ID */
+
+. gen outcome = voteddem_all   /* Y_i */
+
+. gen   treat = readsome       /* T_i */
+
+. gen   instr = post           /* Z_i */  
+
+. 
+. *** generate variables used in estimating persuation rates ***
+. 
+. gen a_u = outcome*treat + (1-treat)
+
+. gen b_l = outcome*(1-treat)
+
+. 
+. gen a_u2 = outcome + (1-treat)
+
+. gen b_l2 = outcome - treat
+
+. 
+. *** specify a variety of critical values for different purposes ***
+. 
+. scalar alpha_level = 0.2     /* the (1-alpha_level) confidence interval */  
+
+. scalar cv_cns1 = invnormal(1-alpha_level)   /* one-sided critical value */
+
+. scalar cv_cns2 = invnormal(1-alpha_level/2) /* two-sided critical value */
+
+. 
+. scalar pretest_level = 0.001
+
+. scalar cv_cns_pretest = invnormal(1-pretest_level/4) 
+
+. /* note that pretest_level is divided by 2 since we pretest two hypotheses */
+. 
+. scalar adjusted = alpha_level-pretest_level
+
+. scalar cv_cns1_adj = invnormal(1-adjusted)   /* one-sided critical value after pretesting */
+
+. scalar cv_cns2_adj = invnormal(1-adjusted/2) /* two-sided critical value after pretesting */
+
+. 
+. *************************
+. ****  ITT Analysis  *****
+. *************************
+. 
+. /* ITT estimate on outcome */
+. 
+. reg outcome instr, robust
+
+Linear regression                               Number of obs     =        701
+                                                F(1, 699)         =       1.91
+                                                Prob > F          =     0.1675
+                                                R-squared         =     0.0028
+                                                Root MSE          =     .46521
+
+------------------------------------------------------------------------------
+             |               Robust
+     outcome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |   .0497683   .0360219     1.38   0.168    -.0209558    .1204924
+       _cons |   .2963855   .0224488    13.20   0.000     .2523105    .3404606
+------------------------------------------------------------------------------
+
+. 
+. scalar itt_coef = _b[instr]
+
+. scalar itt_se = _se[instr]
+
+. 
+. scalar itt_lb = max(0,itt_coef - cv_cns2*itt_se)
+
+. scalar itt_ub = min(1,itt_coef + cv_cns2*itt_se)
+
+. scalar list itt_lb itt_coef itt_ub
+    itt_lb =  .00360435
+  itt_coef =   .0497683
+    itt_ub =  .09593226
+
+. 
+. *** saving results ***
+. matrix results =  (itt_lb, itt_coef, itt_coef, itt_ub)
+
+. 
+. /* ITT estimate on treatment */
+. 
+. reg treat instr, robust
+
+Linear regression                               Number of obs     =        701
+                                                F(1, 699)         =       2.80
+                                                Prob > F          =     0.0944
+                                                R-squared         =     0.0040
+                                                Root MSE          =     .49909
+
+------------------------------------------------------------------------------
+             |               Robust
+       treat | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |   .0641419   .0382997     1.67   0.094    -.0110544    .1393381
+       _cons |   .4987952   .0245791    20.29   0.000     .4505376    .5470528
+------------------------------------------------------------------------------
+
+. 
+. scalar itt_coef_treat = _b[instr]
+
+. scalar itt_se_treat = _se[instr]
+
+. 
+. scalar itt_lb = max(0,itt_coef_treat - cv_cns2*itt_se_treat)
+
+. scalar itt_ub = min(1,itt_coef_treat + cv_cns2*itt_se_treat)
+
+. scalar list itt_lb itt_coef itt_ub
+    itt_lb =  .01505884
+  itt_coef =   .0497683
+    itt_ub =  .11322493
+
+. 
+. *** saving results ***
+. matrix results = results \ (itt_lb, itt_coef_treat, itt_coef_treat, itt_ub)
+
+.  
+. 
+. **********************************************************************
+. ****  Average persuation rate when (Y_i, T_i, Z_i) are observed  *****
+. **********************************************************************
+. 
+. reg outcome instr, robust
+
+Linear regression                               Number of obs     =        701
+                                                F(1, 699)         =       1.91
+                                                Prob > F          =     0.1675
+                                                R-squared         =     0.0028
+                                                Root MSE          =     .46521
+
+------------------------------------------------------------------------------
+             |               Robust
+     outcome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |   .0497683   .0360219     1.38   0.168    -.0209558    .1204924
+       _cons |   .2963855   .0224488    13.20   0.000     .2523105    .3404606
+------------------------------------------------------------------------------
+
+. 
+. /* estimate of the lower bound for average persuation rate */ 
+. nlcom _b[instr]/(1-_b[_cons])    
+
+       _nl_1: _b[instr]/(1-_b[_cons])
+
+------------------------------------------------------------------------------
+     outcome | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |   .0707323   .0498204     1.42   0.156    -.0269139    .1683786
+------------------------------------------------------------------------------
+
+. 
+. matrix  lower_bound_est = r(b)
+
+. matrix lower_bound_avar = r(V)
+
+. scalar lower_bound_coef = lower_bound_est[1,1]
+
+. scalar   lower_bound_se = sqrt(lower_bound_avar[1,1])
+
+. 
+. reg a_u instr 
+
+      Source |       SS           df       MS      Number of obs   =       701
+-------------+----------------------------------   F(1, 699)       =      0.11
+       Model |  .024064716         1  .024064716   Prob > F        =    0.7395
+    Residual |   152.03585       699  .217504792   R-squared       =    0.0002
+-------------+----------------------------------   Adj R-squared   =   -0.0013
+       Total |  152.059914       700  .217228449   Root MSE        =    .46637
+
+------------------------------------------------------------------------------
+         a_u | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |  -.0119218   .0358415    -0.33   0.740    -.0822917    .0584481
+       _cons |    .686747   .0228934    30.00   0.000     .6417989    .7316951
+------------------------------------------------------------------------------
+
+. est store a_u_reg
+
+. reg b_l instr 
+
+      Source |       SS           df       MS      Number of obs   =       701
+-------------+----------------------------------   F(1, 699)       =      0.01
+       Model |   .00101778         1   .00101778   Prob > F        =    0.9189
+    Residual |   68.541065       699  .098055887   R-squared       =    0.0000
+-------------+----------------------------------   Adj R-squared   =   -0.0014
+       Total |  68.5420827       700  .097917261   Root MSE        =    .31314
+
+------------------------------------------------------------------------------
+         b_l | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |  -.0024518   .0240652    -0.10   0.919    -.0497004    .0447969
+       _cons |   .1108434   .0153714     7.21   0.000     .0806638     .141023
+------------------------------------------------------------------------------
+
+. est store b_l_reg
+
+. suest a_u_reg b_l_reg, vce(cluster case_id) 
+
+Simultaneous results for a_u_reg, b_l_reg                  Number of obs = 701
+
+                               (Std. err. adjusted for 701 clusters in case_id)
+-------------------------------------------------------------------------------
+              |               Robust
+              | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+--------------+----------------------------------------------------------------
+a_u_reg_mean  |
+        instr |  -.0119218   .0358813    -0.33   0.740     -.082248    .0584043
+        _cons |    .686747   .0227841    30.14   0.000      .642091     .731403
+--------------+----------------------------------------------------------------
+a_u_reg_lnvar |
+        _cons |  -1.525534   .0294472   -51.81   0.000     -1.58325   -1.467819
+--------------+----------------------------------------------------------------
+b_l_reg_mean  |
+        instr |  -.0024518   .0240046    -0.10   0.919    -.0494999    .0445964
+        _cons |   .1108434   .0154216     7.19   0.000     .0806176    .1410692
+--------------+----------------------------------------------------------------
+b_l_reg_lnvar |
+        _cons |  -2.322218   .0940493   -24.69   0.000    -2.506551   -2.137884
+-------------------------------------------------------------------------------
+
+. 
+. /* estimate of the uppe bound for average persuation rate */  
+. nlcom ([a_u_reg_mean]_cons + [a_u_reg_mean]instr - [b_l_reg_mean]_cons)/(1-[b_l_reg_mean]_cons)
+
+       _nl_1: ([a_u_reg_mean]_cons + [a_u_reg_mean]instr - [b_l_reg_mean]_cons)/(1-[b_l_reg_mean]_cons)
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |   .6342885   .0318135    19.94   0.000     .5719352    .6966417
+------------------------------------------------------------------------------
+
+. 
+. matrix  upper_bound_est = r(b)
+
+. matrix upper_bound_avar = r(V)
+
+. scalar upper_bound_coef = upper_bound_est[1,1]
+
+. scalar   upper_bound_se = sqrt(upper_bound_avar[1,1])
+
+. 
+. /* compute the critical value using Stoye (2009) */  
+. scalar correction_term = (upper_bound_coef-lower_bound_coef)/max(upper_bound_se,lower_bound_se)
+
+. egen cvtmp = fill("0 0.01")
+
+. replace cvtmp = . if cvtmp > cv_cns2+0.01
+(571 real changes made, 571 to missing)
+
+. gen difftmp = abs(normal(cvtmp + correction_term) - normal(-cvtmp) - (1-alpha_level))
+(571 missing values generated)
+
+. replace cvtmp = . if difftmp > 0.002
+(129 real changes made, 129 to missing)
+
+. sum cvtmp
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       cvtmp |          1    .8399995           .   .8399995   .8399995
+
+. scalar cv_cns_stoye = r(mean)
+
+. drop cvtmp difftmp
+
+. 
+. scalar lower_bound_end = max(0,lower_bound_coef - cv_cns_stoye*lower_bound_se)
+
+. scalar upper_bound_end = min(1,upper_bound_coef + cv_cns_stoye*upper_bound_se)
+
+. 
+. scalar list lower_bound_end lower_bound_coef upper_bound_coef upper_bound_end
+lower_bound_end =   .0288832
+lower_bound_coef =  .07073235
+upper_bound_coef =  .63428848
+upper_bound_end =  .66101178
+
+. 
+. 
+. *** saving results ***
+. matrix results = results \ (lower_bound_end, lower_bound_coef, upper_bound_coef, upper_bound_end) 
+
+. 
+. 
+. ****************************************************************************************
+. ****  Average persuation rate when (Y_i,T_i) and (Y_i,Z_i) are separately observed *****
+. ****************************************************************************************
+. 
+. reg a_u2 instr, robust 
+
+Linear regression                               Number of obs     =        701
+                                                F(1, 699)         =       0.09
+                                                Prob > F          =     0.7636
+                                                R-squared         =     0.0001
+                                                Root MSE          =     .62099
+
+------------------------------------------------------------------------------
+             |               Robust
+        a_u2 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |  -.0143736   .0477635    -0.30   0.764    -.1081507    .0794036
+       _cons |   .7975904   .0304276    26.21   0.000     .7378499    .8573308
+------------------------------------------------------------------------------
+
+. 
+. lincom _cons + instr
+
+ ( 1)  instr + _cons = 0
+
+------------------------------------------------------------------------------
+        a_u2 | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |   .7832168   .0368173    21.27   0.000      .710931    .8555026
+------------------------------------------------------------------------------
+
+. scalar coef_a_u2 = r(estimate)
+
+. scalar   se_a_u2 = r(se)
+
+. 
+. reg b_l2 instr, robust 
+
+Linear regression                               Number of obs     =        701
+                                                F(1, 699)         =       0.09
+                                                Prob > F          =     0.7636
+                                                R-squared         =     0.0001
+                                                Root MSE          =     .62099
+
+------------------------------------------------------------------------------
+             |               Robust
+        b_l2 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |  -.0143736   .0477635    -0.30   0.764    -.1081507    .0794036
+       _cons |  -.2024096   .0304276    -6.65   0.000    -.2621501   -.1426692
+------------------------------------------------------------------------------
+
+. scalar coef_b_l2 = _b[_cons]
+
+. matrix      avar = e(V) 
+
+. scalar   se_b_l2 = sqrt(el(avar,2,2))
+
+. 
+. scalar upper_bound2_coef = (min(1,coef_a_u2) - max(0,coef_b_l2))/(1-max(0,coef_b_l2))
+
+. 
+. 
+. *** pre-testing stage ***
+. 
+. scalar a_u2_pretest = coef_a_u2 + cv_cns_pretest*se_a_u2
+
+. scalar b_l2_pretest = coef_b_l2 + cv_cns_pretest*se_b_l2
+
+. 
+. *** N.B. It turns out that (a_u2_pretest < 1) & (b_l2_pretest <= 0) ***
+.  
+. scalar upper_bound2_se = se_a_u2
+
+. 
+. /* compute the critical value using Stoye (2009) again */  
+. scalar correction_term = (upper_bound2_coef-lower_bound_coef)/max(upper_bound2_se,lower_bound_se)
+
+. egen cvtmp = fill("0 0.01")
+
+. replace cvtmp = . if cvtmp > cv_cns2_adj+0.01
+(571 real changes made, 571 to missing)
+
+. gen difftmp = abs(normal(cvtmp + correction_term) - normal(-cvtmp) - (1-adjusted))
+(571 missing values generated)
+
+. replace cvtmp = . if difftmp > 0.002
+(128 real changes made, 128 to missing)
+
+. sum cvtmp
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       cvtmp |          2    .8449995    .0070711   .8399995   .8499995
+
+. scalar cv_cns2_stoye = r(mean)
+
+. 
+. scalar lower_bound2_end = max(0,lower_bound_coef - cv_cns2_stoye*lower_bound_se)
+
+. scalar upper_bound2_end = min(1,upper_bound2_coef + cv_cns2_stoye*upper_bound2_se)
+
+. 
+. scalar list lower_bound2_end lower_bound_coef upper_bound2_coef upper_bound2_end
+lower_bound2_end =   .0286341
+lower_bound_coef =  .07073235
+upper_bound2_coef =  .78321678
+upper_bound2_end =  .81432741
+
+. 
+. 
+. *** saving results ***
+. matrix results = results \ (lower_bound2_end, lower_bound_coef, upper_bound2_coef, upper_bound2_end) 
+
+. 
+. 
+. ****************************************************************
+. ****  Average persuation rate when (Y_i,Z_i) are observed  *****
+. ****************************************************************
+. 
+. scalar lower_bound3_end = max(0,lower_bound_coef - cv_cns1*lower_bound_se)
+
+. scalar list lower_bound3_end lower_bound_coef
+lower_bound3_end =  .02880241
+lower_bound_coef =  .07073235
+
+. 
+. 
+. *** saving results ***
+. matrix results = results \ (lower_bound3_end, lower_bound_coef, 1, 1) 
+
+. 
+. 
+. **********************************************************************
+. ****  Local persuation rate when (Y_i, T_i, Z_i) are observed    *****
+. **********************************************************************
+. 
+. reg outcome instr 
+
+      Source |       SS           df       MS      Number of obs   =       701
+-------------+----------------------------------   F(1, 699)       =      1.94
+       Model |  .419374282         1  .419374282   Prob > F        =    0.1643
+    Residual |  151.275348       699  .216416806   R-squared       =    0.0028
+-------------+----------------------------------   Adj R-squared   =    0.0013
+       Total |  151.694722       700  .216706745   Root MSE        =    .46521
+
+------------------------------------------------------------------------------
+     outcome | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |   .0497683   .0357518     1.39   0.164    -.0204254     .119962
+       _cons |   .2963855   .0228361    12.98   0.000       .25155    .3412211
+------------------------------------------------------------------------------
+
+. est store num_reg
+
+. 
+. gen den_lpr = (1-outcome)*(1-treat)
+
+. reg den_lpr instr 
+
+      Source |       SS           df       MS      Number of obs   =       701
+-------------+----------------------------------   F(1, 699)       =      2.78
+       Model |  .644358113         1  .644358113   Prob > F        =    0.0957
+    Residual |  161.866341       699  .231568442   R-squared       =    0.0040
+-------------+----------------------------------   Adj R-squared   =    0.0025
+       Total |  162.510699       700  .232158141   Root MSE        =    .48122
+
+------------------------------------------------------------------------------
+     den_lpr | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |  -.0616901   .0369821    -1.67   0.096    -.1342994    .0109192
+       _cons |   .3903614   .0236219    16.53   0.000      .343983    .4367399
+------------------------------------------------------------------------------
+
+. est store den_reg
+
+. 
+. suest num_reg den_reg, vce(cluster case_id) 
+
+Simultaneous results for num_reg, den_reg                  Number of obs = 701
+
+                               (Std. err. adjusted for 701 clusters in case_id)
+-------------------------------------------------------------------------------
+              |               Robust
+              | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+--------------+----------------------------------------------------------------
+num_reg_mean  |
+        instr |   .0497683   .0359962     1.38   0.167    -.0207829    .1203195
+        _cons |   .2963855   .0224327    13.21   0.000     .2524182    .3403529
+--------------+----------------------------------------------------------------
+num_reg_lnvar |
+        _cons |  -1.530549   .0298911   -51.20   0.000    -1.589135   -1.471964
+--------------+----------------------------------------------------------------
+den_reg_mean  |
+        instr |  -.0616901   .0366995    -1.68   0.093    -.1336199    .0102397
+        _cons |   .3903614   .0239638    16.29   0.000     .3433933    .4373296
+--------------+----------------------------------------------------------------
+den_reg_lnvar |
+        _cons |   -1.46288   .0215406   -67.91   0.000    -1.505099   -1.420661
+-------------------------------------------------------------------------------
+
+. nlcom [num_reg_mean]instr/(-[den_reg_mean]instr)
+
+       _nl_1: [num_reg_mean]instr/(-[den_reg_mean]instr)
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |   .8067468   .5324903     1.52   0.130    -.2369151    1.850409
+------------------------------------------------------------------------------
+
+. 
+. matrix  lpr_est = r(b)
+
+. matrix lpr_avar = r(V)
+
+. scalar lpr_coef = lpr_est[1,1]
+
+. scalar   lpr_se = sqrt(lpr_avar[1,1])
+
+. 
+. 
+. scalar lpr_lb = max(0,lpr_coef - cv_cns2*lpr_se)
+
+. scalar lpr_ub = min(1,lpr_coef + cv_cns2*lpr_se)
+
+. scalar list lpr_lb lpr_coef lpr_ub
+    lpr_lb =  .12433299
+  lpr_coef =  .80674679
+    lpr_ub =          1
+
+. 
+. *** saving results ***
+. matrix results = results \ (lpr_lb, lpr_coef,  lpr_coef, lpr_ub) 
+
+. 
+. ****************************************************************************************
+. ****  Local persuation rate when (Y_i,T_i) and (Y_i,Z_i) are separately observed   *****
+. ****************************************************************************************
+. 
+. ** theta^*_L = max(LATE,theta_L) 
+. 
+. ivregress 2sls outcome (treat = instr), robust 
+
+Instrumental variables 2SLS regression            Number of obs   =        701
+                                                  Wald chi2(1)    =       1.38
+                                                  Prob > chi2     =     0.2409
+                                                  R-squared       =          .
+                                                  Root MSE        =     .55094
+
+------------------------------------------------------------------------------
+             |               Robust
+     outcome | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       treat |   .7759096   .6615744     1.17   0.241    -.5207524    2.072572
+       _cons |  -.0906344   .3476791    -0.26   0.794     -.772073    .5908041
+------------------------------------------------------------------------------
+Instrumented: treat
+ Instruments: instr
+
+. scalar lpr2_coef = _b[treat]
+
+. matrix      avar = e(V) 
+
+. scalar   lpr2_se = sqrt(el(avar,1,1))
+
+. 
+. 
+. scalar lpr_lb_LATE = max(0,lpr2_coef - cv_cns2*lpr2_se)
+
+. scalar lpr_lb_LBND = max(0,lower_bound_coef - cv_cns2*lower_bound_se)
+
+. 
+. scalar lpr2_max = max(lpr2_coef, lower_bound_coef)
+
+. scalar lpr2_lb = max(lpr_lb_LATE, lpr_lb_LBND)
+
+. 
+. scalar list lpr2_lb lpr2_max 
+   lpr2_lb =  .00688488
+  lpr2_max =  .77590963
+
+. 
+. *** saving results ***
+. matrix results = results \ (lpr2_lb, lpr2_max, 1, 1) 
+
+. 
+. ****************************************************************
+. ****  Local persuation rate when (Y_i,Z_i) are observed    *****
+. ****************************************************************
+. 
+. scalar lpr3_lb = lower_bound3_end 
+
+. scalar list lpr3_lb lower_bound_coef
+   lpr3_lb =  .02880241
+lower_bound_coef =  .07073235
+
+. 
+. *** saving results ***
+. matrix results = results \ (lpr3_lb, lower_bound_coef, 1, 1) 
+
+. 
+. *******************
+. ****  LATE    *****
+. *******************
+. 
+. scalar lpr_ub_LATE = min(1,lpr2_coef + cv_cns2*lpr2_se)
+
+. scalar list lpr_lb_LATE lpr2_coef lpr_ub_LATE
+lpr_lb_LATE =          0
+ lpr2_coef =  .77590963
+lpr_ub_LATE =          1
+
+. 
+. *** saving results ***
+. matrix results = results \ (lpr_lb_LATE, lpr2_coef,  lpr2_coef, lpr_ub_LATE) 
+
+. 
+. ************************************************
+. ****  LATE  when (Y_i,Z_i) are observed    *****
+. ************************************************
+. 
+. scalar lpr3_lb_LATE = max(0,itt_coef - cv_cns1*itt_se)
+
+. scalar list lpr3_lb_LATE itt_coef
+lpr3_lb_LATE =  .01945148
+  itt_coef =   .0497683
+
+. 
+. *** saving results ***
+. matrix results = results \ (lpr3_lb_LATE, itt_coef,  1, 1) 
+
+. 
+. **********************************************************************
+. ****  Average persuation rate                                    *****
+. ****    conditional on voting without persuasive treatement      *****
+. ****    when (Y_i, T_i, Z_i) are observed                        *****
+. **********************************************************************
+. 
+. 
+. gen yt00 = (1-voted)*(1-treat)
+(1 missing value generated)
+
+. 
+. reg outcome instr
+
+      Source |       SS           df       MS      Number of obs   =       701
+-------------+----------------------------------   F(1, 699)       =      1.94
+       Model |  .419374282         1  .419374282   Prob > F        =    0.1643
+    Residual |  151.275348       699  .216416806   R-squared       =    0.0028
+-------------+----------------------------------   Adj R-squared   =    0.0013
+       Total |  151.694722       700  .216706745   Root MSE        =    .46521
+
+------------------------------------------------------------------------------
+     outcome | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |   .0497683   .0357518     1.39   0.164    -.0204254     .119962
+       _cons |   .2963855   .0228361    12.98   0.000       .25155    .3412211
+------------------------------------------------------------------------------
+
+. est store multi_num_reg
+
+. 
+. reg yt00 instr
+
+      Source |       SS           df       MS      Number of obs   =       700
+-------------+----------------------------------   F(1, 698)       =      0.00
+       Model |  .000145989         1  .000145989   Prob > F        =    0.9756
+    Residual |   108.96414       698  .156109083   R-squared       =    0.0000
+-------------+----------------------------------   Adj R-squared   =   -0.0014
+       Total |  108.964286       699   .15588596   Root MSE        =    .39511
+
+------------------------------------------------------------------------------
+        yt00 | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       instr |   -.000929   .0303795    -0.03   0.976    -.0605751     .058717
+       _cons |   .1932367   .0194184     9.95   0.000     .1551112    .2313622
+------------------------------------------------------------------------------
+
+. est store multi_den_reg
+
+. 
+. suest multi_num_reg multi_den_reg, vce(cluster case_id) 
+
+Simultaneous results for multi_num_reg, multi_den_reg
+
+                                                           Number of obs = 701
+
+                                     (Std. err. adjusted for 701 clusters in case_id)
+-------------------------------------------------------------------------------------
+                    |               Robust
+                    | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+--------------------+----------------------------------------------------------------
+multi_num_reg_mean  |
+              instr |   .0497683   .0359962     1.38   0.167    -.0207829    .1203195
+              _cons |   .2963855   .0224327    13.21   0.000     .2524182    .3403529
+--------------------+----------------------------------------------------------------
+multi_num_reg_lnvar |
+              _cons |  -1.530549   .0298911   -51.20   0.000    -1.589135   -1.471964
+--------------------+----------------------------------------------------------------
+multi_den_reg_mean  |
+              instr |   -.000929   .0303475    -0.03   0.976     -.060409     .058551
+              _cons |   .1932367    .019419     9.95   0.000     .1551761    .2312973
+--------------------+----------------------------------------------------------------
+multi_den_reg_lnvar |
+              _cons |    -1.8572   .0587214   -31.63   0.000    -1.972292   -1.742108
+-------------------------------------------------------------------------------------
+
+. *** estimating p_1(1|1) + p_0(1,0|0)
+. lincom [multi_num_reg_mean]instr+[multi_num_reg_mean]_cons+[multi_den_reg_mean]_cons
+
+ ( 1)  [multi_num_reg_mean]instr + [multi_num_reg_mean]_cons + [multi_den_reg_mean]_cons = 0
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |   .5393906   .0341994    15.77   0.000      .472361    .6064201
+------------------------------------------------------------------------------
+
+.         
+. scalar multi_pretest_coef = r(estimate)
+
+. scalar multi_pretest_se = r(se) 
+
+.         
+. *** pre-testing stage ***
+. scalar multi_pretest = multi_pretest_coef + cv_cns_pretest*multi_pretest_se
+
+. 
+. 
+. *** estimating the lower bound  
+. suest multi_num_reg multi_den_reg, vce(cluster case_id) 
+
+Simultaneous results for multi_num_reg, multi_den_reg
+
+                                                           Number of obs = 701
+
+                                     (Std. err. adjusted for 701 clusters in case_id)
+-------------------------------------------------------------------------------------
+                    |               Robust
+                    | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+--------------------+----------------------------------------------------------------
+multi_num_reg_mean  |
+              instr |   .0497683   .0359962     1.38   0.167    -.0207829    .1203195
+              _cons |   .2963855   .0224327    13.21   0.000     .2524182    .3403529
+--------------------+----------------------------------------------------------------
+multi_num_reg_lnvar |
+              _cons |  -1.530549   .0298911   -51.20   0.000    -1.589135   -1.471964
+--------------------+----------------------------------------------------------------
+multi_den_reg_mean  |
+              instr |   -.000929   .0303475    -0.03   0.976     -.060409     .058551
+              _cons |   .1932367    .019419     9.95   0.000     .1551761    .2312973
+--------------------+----------------------------------------------------------------
+multi_den_reg_lnvar |
+              _cons |    -1.8572   .0587214   -31.63   0.000    -1.972292   -1.742108
+-------------------------------------------------------------------------------------
+
+. nlcom [multi_num_reg_mean]instr/(1-[multi_num_reg_mean]_cons-[multi_den_reg_mean]_cons)         
+
+       _nl_1: [multi_num_reg_mean]instr/(1-[multi_num_reg_mean]_cons-[multi_den_reg_mean]_cons)
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |   .0975127   .0687259     1.42   0.156    -.0371876     .232213
+------------------------------------------------------------------------------
+
+. 
+. matrix  multi_lower_bound_est = r(b)
+
+. matrix multi_lower_bound_avar = r(V)
+
+. scalar multi_lower_bound_coef = multi_lower_bound_est[1,1]
+
+. scalar   multi_lower_bound_se = sqrt(lower_bound_avar[1,1])
+
+. 
+. 
+. scalar  multi_lower_bound_end = max(0,multi_lower_bound_coef - cv_cns1_adj*multi_lower_bound_se)
+
+. scalar list multi_lower_bound_end multi_lower_bound_coef
+multi_lower_bound_end =  .05540452
+multi_lower_bound_coef =  .09751268
+
+. 
+. 
+. *** saving results ***
+. matrix results = results \ (multi_lower_bound_end, multi_lower_bound_coef, 1, 1) 
+
+. 
+. 
+. *******************************************
+. ****  Printing result in a LaTeX file *****
+. *******************************************
+.                                                   
+. matrix results_est = (results[1..11,2], results[1..11,3], results[1..11,1], results[1..11,4])
+
+. 
+. frmttable using "$Persuasion/results/table4", statmat(results_est) tex replace sdec(4) ///
+>         title("Table 4") ///
+>         ctitles("", Estimate (LB), Estimate (UB), CI (LB), CI (UB) )  ///
+>         rtitles("Intent-to-Treat (Voting)" \ "Intent-to-Treat (Reading newspaper)" \ ///
+>         "Average Persuasion Rate (Case 1)" \ "Average Persuasion Rate (Case 2)" \ "Average Persuasion Rate (Case 3)" \  
+>   ///
+>         "Local Persuasion Rate (Case 1)" \ "Local Persuasion Rate (Case 2)" \ "Local Persuasion Rate (Case 3)" \ /// 
+>         "LATE (Cases 1 and 2)" \ "LATE (Case 3)" \ "Non-binary case") 
+
+                                                         Table 4
+                 ----------------------------------------------------------------------------------------
+                                                        Estimate (LB)  Estimate (UB)  CI (LB)  CI (UB)  
+                 ----------------------------------------------------------------------------------------
+                  Intent-to-Treat (Voting)                 0.0498         0.0498      0.0036    0.0959  
+                  Intent-to-Treat (Reading newspaper)      0.0641         0.0641      0.0151    0.1132  
+                  Average Persuasion Rate (Case 1)         0.0707         0.6343      0.0289    0.6610  
+                  Average Persuasion Rate (Case 2)         0.0707         0.7832      0.0286    0.8143  
+                  Average Persuasion Rate (Case 3)         0.0707         1.0000      0.0288    1.0000  
+                  Local Persuasion Rate (Case 1)           0.8067         0.8067      0.1243    1.0000  
+                  Local Persuasion Rate (Case 2)           0.7759         1.0000      0.0069    1.0000  
+                  Local Persuasion Rate (Case 3)           0.0707         1.0000      0.0288    1.0000  
+                  LATE (Cases 1 and 2)                     0.7759         0.7759      0.0000    1.0000  
+                  LATE (Case 3)                            0.0498         1.0000      0.0195    1.0000  
+                  Non-binary case                          0.0975         1.0000      0.0554    1.0000  
+                 ----------------------------------------------------------------------------------------
+
+
+. 
+end of do-file
+
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time:  2 Nov 2022 18:03:09
+
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.02-18.03.09.log.txt
+  log type:  text
+ closed on:   2 Nov 2022, 18:03:09
+--------------------------------------------------------------------------------------------------------------------------

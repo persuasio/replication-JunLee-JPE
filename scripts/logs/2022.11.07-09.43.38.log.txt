@@ -1,0 +1,388 @@
+----------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-09.43.38.log.txt
+  log type:  text
+ opened on:   7 Nov 2022, 09:43:38
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  7 Nov 2022 09:43:38
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 16.1
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 30 Mar 2021
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.4.0
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data
+> .do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang20
+> 19", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
+. do "$Persuasion/scripts/tableH1.do"
+
+. ************
+. * SCRIPT:   tableH1.do
+. * PURPOSE:  Creates Table H1
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "NTV_Individual_Data.dta" is from Enikolopov, Petrov
+> a, and Zhuravskaya (AER, 2011).
+. ************
+. 
+. use "$Persuasion/data/EnikolopovPetrovaZhuravskaya2011/NTV_Individual_Data.dta",
+>  clear
+
+. 
+. local basic = "logpop98 wage98_ln"
+
+. local sociodem = "male age educ1 married consump"
+
+. 
+. local party_list = "Unity OVR"
+
+. 
+. *** create outcome variables based on directional treatment ***
+. 
+. gen y_vote_Unity = 0
+
+. replace y_vote_Unity = 1 if vote_Unity == 0   
+(993 real changes made)
+
+. 
+. gen y_vote_OVR = 0
+
+. replace y_vote_OVR = 1 if vote_OVR == 1   
+(166 real changes made)
+
+. 
+. *** create a binary instrument ***
+. 
+. svyset [pweight=kishweig]
+
+      pweight: kishweig
+          VCE: linearized
+  Single unit: missing
+     Strata 1: <one>
+         SU 1: <observations>
+        FPC 1: <zero>
+
+. 
+. _pctile tvmaxtveloss5050powerA [pweight=kishweig], p(50)         
+
+. scalar IV = r(r1)        
+
+. 
+.         gen IV_NTV = 0
+
+. replace IV_NTV = 1 if tvmaxtveloss5050powerA > IV
+(2,142 real changes made)
+
+. 
+. *** predict Z ***
+. 
+. *quietly probit  IV_NTV `sociodem' `basic' [pweight=kishweig]  
+. 
+. svy: mean IV_NTV `sociodem' `basic'
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+      IV_NTV |   .5671753   .0150487      .5376528    .5966978
+        male |   .3825828   .0147982      .3535519    .4116137
+         age |   29.33457    .504959      28.34395     30.3252
+       educ1 |   .7837737    .012397      .7594534     .808094
+     married |   .6546334   .0138906       .627383    .6818838
+     consump |   1.516561   .0418035      1.434551    1.598571
+    logpop98 |   5.113802   .0424172      5.030589    5.197016
+   wage98_ln |   6.735794   .0130092      6.710272    6.761315
+--------------------------------------------------------------
+
+. 
+. probit  IV_NTV `sociodem' `basic' [pweight=kishweig]  
+
+Iteration 0:   log pseudolikelihood = -897.56596  
+Iteration 1:   log pseudolikelihood =  -377.4733  
+Iteration 2:   log pseudolikelihood = -375.96839  
+Iteration 3:   log pseudolikelihood = -375.96241  
+Iteration 4:   log pseudolikelihood = -375.96241  
+
+Probit regression                               Number of obs     =      1,300
+                                                Wald chi2(7)      =     434.31
+                                                Prob > chi2       =     0.0000
+Log pseudolikelihood = -375.96241               Pseudo R2         =     0.5811
+
+------------------------------------------------------------------------------
+             |               Robust
+      IV_NTV |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        male |   .0194095    .119127     0.16   0.871    -.2140752    .2528941
+         age |   .0015902   .0036186     0.44   0.660    -.0055021    .0086825
+       educ1 |   .0596368   .1473923     0.40   0.686    -.2292468    .3485203
+     married |  -.1636445   .1206162    -1.36   0.175     -.400048    .0727589
+     consump |   .0839782   .0441933     1.90   0.057     -.002639    .1705954
+    logpop98 |   .8995543   .0471699    19.07   0.000      .807103    .9920055
+   wage98_ln |    1.48292   .1493027     9.93   0.000     1.190292    1.775548
+       _cons |   -14.4872   1.115978   -12.98   0.000    -16.67448   -12.29992
+------------------------------------------------------------------------------
+
+. predict phat_Z1
+(option pr assumed; Pr(IV_NTV))
+(4,658 missing values generated)
+
+. 
+. *** predict T given Z=1 and Z=0 ***
+. 
+. quietly probit  Watches_NTV_1999 `sociodem' `basic' [pweight=kishweig] if IV_NTV
+> ==1 
+
+. predict phat_T_Z1
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. quietly probit  Watches_NTV_1999 `sociodem' `basic' [pweight=kishweig] if IV_NTV
+> ==0 
+
+. predict phat_T_Z0
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. *** input for ATE estimation ***
+. 
+. foreach party in  `party_list'    {
+  2. 
+. gen newvote_`party' = 0
+  3. replace newvote_`party' = 1 if y_vote_`party' == 1  
+  4. 
+. *** predict Y given Z=1 and Z=0 ***
+. 
+. quietly probit newvote_`party' `sociodem' `basic' [pweight=kishweig] if IV_NTV==
+> 1 
+  5. predict phat_Y_Z1_`party'
+  6. 
+. quietly probit newvote_`party' `sociodem' `basic' [pweight=kishweig] if IV_NTV==
+> 0 
+  7. predict phat_Y_Z0_`party'
+  8. 
+. *** compute ATE and relevant quantities ***
+. 
+. gen     ate_`party' = (phat_Y_Z1_`party' - phat_Y_Z0_`party')/(1-phat_Y_Z0_`part
+> y')
+  9. gen      w1_`party' = IV_NTV/phat_Z1
+ 10. gen      w0_`party' = (1-IV_NTV)/(1-phat_Z1)
+ 11. gen      t1_`party' = (newvote_`party'-phat_Y_Z1_`party')/(1-phat_Y_Z0_`party
+> ') 
+ 12. gen      t0_`party' = ((newvote_`party'-phat_Y_Z0_`party')*(ate_`party'-1))/(
+> 1-phat_Y_Z0_`party') 
+ 13. gen    infl_`party' = w1_`party'*t1_`party'+w0_`party'*t0_`party'
+ 14. }
+(993 real changes made)
+(option pr assumed; Pr(newvote_Unity))
+(4,658 missing values generated)
+(option pr assumed; Pr(newvote_Unity))
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(166 real changes made)
+(option pr assumed; Pr(newvote_OVR))
+(4,658 missing values generated)
+(option pr assumed; Pr(newvote_OVR))
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+
+. 
+. *** average out with respect to covariates ***
+. 
+. svyset [pweight=kishweig]
+
+      pweight: kishweig
+          VCE: linearized
+  Single unit: missing
+     Strata 1: <one>
+         SU 1: <observations>
+        FPC 1: <zero>
+
+. 
+. foreach party in  `party_list'    {
+  2. 
+. matrix results_`party' = J(3,1,0)
+  3. 
+.     svy: mean ate_`party' 
+  4.     
+.         matrix result = e(b)    
+  5.     matrix results_`party'[1,1] = result[1,1]
+  6.         
+.         gen new_infl_`party' = infl_`party' + (ate_`party' - result[1,1])
+  7.                  
+.     svy: mean new_infl_`party'
+  8.         
+.         matrix result_se = e(V)
+  9.     matrix results_`party'[2,1] = sqrt(result_se[1,1])                       
+>     
+ 10.     matrix results_`party'[3,1] = results_`party'[1,1]-1.645*results_`party'[
+> 2,1]                                
+ 11. }
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+   ate_Unity |   .1667406   .0068477      .1533069    .1801743
+--------------------------------------------------------------
+(4,658 missing values generated)
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1          Number of obs   =      1,300
+Number of PSUs   =   1,300          Population size = 1,312.0491
+                                    Design df       =      1,299
+
+----------------------------------------------------------------
+               |             Linearized
+               |       Mean   Std. Err.     [95% Conf. Interval]
+---------------+------------------------------------------------
+new_infl_Unity |   -.150235   .1420967     -.4289992    .1285292
+----------------------------------------------------------------
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+     ate_OVR |   .0703301   .0023118      .0657948    .0748654
+--------------------------------------------------------------
+(4,658 missing values generated)
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+new_infl_OVR |   .0047302   .0500694     -.0934955    .1029558
+--------------------------------------------------------------
+
+. 
+. 
+. 
+. ************* prin results *************
+. 
+. 
+. foreach party in  `party_list'    {
+  2. 
+. *** r1: point estimate; r2: standard error; r3: the lower-end point of one-sided
+>  95% confidence interval
+. 
+. 
+. matrix list results_`party', format(%9.3f)
+  3. 
+. }
+
+results_Unity[3,1]
+        c1
+r1   0.167
+r2   0.142
+r3  -0.067
+
+results_OVR[3,1]
+        c1
+r1   0.070
+r2   0.050
+r3  -0.012
+
+. 
+end of do-file
+
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time:  7 Nov 2022 09:43:38
+
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-09.43.38.log.txt
+  log type:  text
+ closed on:   7 Nov 2022, 09:43:38
+----------------------------------------------------------------------------------

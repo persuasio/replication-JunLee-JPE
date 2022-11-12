@@ -1,0 +1,262 @@
+----------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-09.27.33.log.txt
+  log type:  text
+ opened on:   7 Nov 2022, 09:27:33
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  7 Nov 2022 09:27:33
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 16.1
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 30 Mar 2021
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.4.0
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data
+> .do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang20
+> 19", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
+. do "$Persuasion/scripts/tableH1.do"
+
+. ************
+. * SCRIPT:   tableH1.do
+. * PURPOSE:  Creates Table H1
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "NTV_Individual_Data.dta" is from Enikolopov, Petrov
+> a, and Zhuravskaya (AER, 2011).
+. ************
+. 
+. use "$Persuasion/data/EnikolopovPetrovaZhuravskaya2011/NTV_Individual_Data.dta",
+>  clear
+
+. 
+. local basic = "logpop98 wage98_ln"
+
+. local sociodem = "male age educ1 married consump"
+
+. 
+. local party_list = "Unity OVR"
+
+. 
+. *** create outcome variables based on directional treatment ***
+. 
+. gen y_vote_Unity = 0
+
+. replace y_vote_Unity = 1 if vote_Unity == 0   
+(993 real changes made)
+
+. 
+. gen y_vote_OVR = 0
+
+. replace y_vote_OVR = 1 if vote_OVR == 1   
+(166 real changes made)
+
+. 
+. *** create a binary instrument ***
+. 
+. svyset [pweight=kishweig]
+
+      pweight: kishweig
+          VCE: linearized
+  Single unit: missing
+     Strata 1: <one>
+         SU 1: <observations>
+        FPC 1: <zero>
+
+. 
+. _pctile tvmaxtveloss5050powerA [pweight=kishweig], p(50)         
+
+. scalar IV = r(r1)        
+
+. 
+.         gen IV_NTV = 0
+
+. replace IV_NTV = 1 if tvmaxtveloss5050powerA > IV
+(2,142 real changes made)
+
+. 
+. *** predict Z ***
+. 
+. quietly probit  IV_NTV `sociodem' `basic' [pweight=kishweig]  
+
+. predict phat_Z1
+(option pr assumed; Pr(IV_NTV))
+(4,658 missing values generated)
+
+. 
+. *** predict T given Z=1 and Z=0 ***
+. 
+. quietly probit  Watches_NTV_1999 `sociodem' `basic' [pweight=kishweig] if IV_NTV
+> ==1 
+
+. predict phat_T_Z1
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. quietly probit  Watches_NTV_1999 `sociodem' `basic' [pweight=kishweig] if IV_NTV
+> ==0 
+
+. predict phat_T_Z0
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. *** input for ATE estimation ***
+. 
+. foreach party in  `party_list'    {
+  2. 
+. gen newvote_`party' = 0
+  3. replace newvote_`party' = 1 if y_vote_`party' == 1  
+  4. 
+. *** predict Y given Z=1 and Z=0 ***
+. 
+. quietly probit newvote_`party' `sociodem' `basic' [pweight=kishweig] if IV_NTV==
+> 1 
+  5. predict phat_Y_Z1_`party'
+  6. 
+. quietly probit newvote_`party' `sociodem' `basic' [pweight=kishweig] if IV_NTV==
+> 0 
+  7. predict phat_Y_Z0_`party'
+  8. 
+. *** compute ATE and relevant quantities ***
+. 
+. gen     ate_`party' = (phat_Y_Z1_`party' - phat_Y_Z0_`party')/(1-phat_Y_Z0_`part
+> y')
+  9. gen      w1_`party' = IV_NTV/phat_Z1
+ 10. gen      w0_`party' = (1-IV_NTV)/(1-phat_Z1)
+ 11. gen      t1_`party' = (newvote_`party'-phat_Y_Z1_`party')/(1-phat_Y_Z0_`party
+> ') 
+ 12. gen      t0_`party' = ((newvote_`party'-phat_Y_Z0_`party')*(ate_`party'-1))/(
+> 1-phat_Y_Z0_`party') 
+ 13. gen    infl_`party' = w1_`party'*t1_`party'+w0_`party'*t0_`party'
+ 14. gen new_ate_`party'_`instv' = infl_`party'_`instv' + ate_`party'_`instv'
+ 15. }
+(993 real changes made)
+(option pr assumed; Pr(newvote_Unity))
+(4,658 missing values generated)
+(option pr assumed; Pr(newvote_Unity))
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+infl_Unity_ not found
+r(111);
+
+end of do-file
+r(111);
+
+end of do-file
+
+r(111);
+
+. do "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/run.do"
+
+. **********************
+. * OVERVIEW
+. *   This script generates selected tables for the paper:
+. *       "IDENTIFYING THE EFFECT OF PERSUASION" (Sung Jae Jun and Sokbae Lee)
+. *   All data are stored in /data
+. *   All tables are outputted to /results
+. * 
+. * SOFTWARE REQUIREMENTS
+. *   Stata version 17 or newer
+. *
+. * PACKAGE REQUIREMENTS
+. *   persuasio (can be installed by ssc install persuasio, replace)
+. *   outreg (can be installed by ssc install outreg, replace)
+. *
+. * TO PERFORM A CLEAN RUN, DELETE THE FOLLOWING FOLDER:
+. *   $Persuasion/results
+. *
+. * ACKNOWLEDGMENT
+. *       The structure of the replication files is forked from 
+. *   Illinois Workplace Wellness Study: Public Use Data Repository
+. *   at https://github.com/reifjulian/illinois-wellness-data
+. **********************
+. 
+. **********************
+. * Parameters defined by user
+. **********************
+. 
+. * "Persuasion" points to the root directory, which contains the subfolders "data
+> " and "scripts"
+. global Persuasion "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files"
+
+. 
+. * Number of bootstraps for Table 2
+. * The published paper used nbt = 10000. Runtime is approximately 3 hours on an i
+> Mac (M1, 2021).
+. * Use nbt = 10 to check whether replication code runs without an error. 
+. global nbt = 10000
+
+. 
+. * set seed for replicability 
+. set seed 987975 
+
+. 
+. **********************
+. **********************
+. 
+. * Confirm that the global for the root directory has been defined
+. assert !missing("$Persuasion")
+
+. 
+. * Initialize log and record system parameters
+. clear 
+
+. set more off
+
+. cap mkdir "$Persuasion/scripts/logs"
+
+. cap log close

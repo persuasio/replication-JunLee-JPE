@@ -1,0 +1,566 @@
+----------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-13.13.44.log.txt
+  log type:  text
+ opened on:   7 Nov 2022, 13:13:44
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  7 Nov 2022 13:13:44
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 16.1
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 30 Mar 2021
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.4.0
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data
+> .do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang20
+> 19", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE D1. Persuasion Rates: Fox News Effects
+. do "$Persuasion/scripts/tableD1.do"
+
+. ************
+. * SCRIPT:   tableD1.do
+. * PURPOSE:  Creates Table D1
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "FoxNewsFinalDataQJE" is from DellaVigna and Kaplan 
+> (QJE, 2007).
+. *       The dataset is available at http://eml.berkeley.edu/~sdellavi/index.html
+> .
+. *   We thank the authors of the paper to make their data available online. 
+. *
+. * NOTES
+. *       An alternative measure of the dependent variable is used. 
+. *   That is, Y = (Republican voting share as a share of the voting-age populatio
+> n) 
+. ************
+. 
+. use "$Persuasion/data/DellaVignaKaplan2007/FoxNewsFinalDataQJE.dta", clear
+
+. 
+. *** Generate macros of controls
+. ** Census Controls
+. foreach tc in "2000" "00m90" {
+  2.         local contrcens`tc'= "pop`tc' hs`tc' hsp`tc' college`tc' male`tc' bla
+> ck`tc' hisp`tc' empl`tc' unempl`tc' married`tc' income`tc' urban`tc'"
+  3.         local contrcenssh`tc'stat= "pop`tc'stat hsp`tc' college`tc' black`tc'
+>  hisp`tc' unempl`tc' urban`tc'"
+  4. }
+
+. ** Cable Controls
+. foreach tc in "2000" {
+  2.         local contrcbl`tc'= "poptot`tc'd2-poptot`tc'd10 noch`tc'd2-noch`tc'd1
+> 0"
+  3. }
+
+. 
+. ** Keep only basic sample
+. keep if sample12000==1
+(870 observations deleted)
+
+. 
+. * Table V -- Presidential Effects -- Robustness and Presidential Delayed Effects
+. * Lagged vote share
+. 
+. gen new_y2000 = reppresvotes2000/pop18p2000
+
+. gen new_y1996 = reppresvotes1996/pop18p1996
+
+. 
+. sum new_y2000 new_y1996 [aweight=totpresvotes1996]
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   new_y2000 |   9,256    32912454    .4163778   1.120204   .0008402      96.25
+   new_y1996 |   9,256    32912454    .3345691   .8960611   .0009127      67.75
+
+. 
+. **************************************************
+. *** Estimating parameters for persuation rates ***
+. 
+. local fixed_effect_list = "diststate countystate"
+
+. 
+. foreach fixed_effect in  `fixed_effect_list' {
+  2.         
+. matrix results_`fixed_effect' = J(3,1,.)        
+  3. 
+. areg new_y2000 new_y1996 foxnews2000 `contrcens2000' `contrcens00m90' `contrcbl2
+> 000' if sample12000==1 [aweight=pop18p1996], a(`fixed_effect') robust cluster(ac
+> count2000)
+  4. 
+. matrix reg_b = e(b)
+  5. predict yhat, xbd 
+  6. 
+. *** predict Y given Z=1 and Z=0
+. 
+. scalar coeff_b = reg_b[1,2]
+  7. scalar list coeff_b
+  8. gen yhat1 = yhat + coeff_b - coeff_b*foxnews2000
+  9. gen yhat0 = yhat - coeff_b*foxnews2000
+ 10. 
+. replace yhat1 = min(max(yhat1,0),1)
+ 11. replace yhat0 = min(max(yhat0,0),1)
+ 12. 
+. gen thetahat_num = (yhat1-yhat0)
+ 13. gen thetahat_den = (1-yhat0)
+ 14. replace thetahat_den = max(thetahat_den, 1e-8)
+ 15. gen thetahat = thetahat_num/thetahat_den
+ 16. 
+. *** Lower bound for theta 
+. 
+. sum thetahat if auddiaryScar > 0 [aweight=auddiaryScar]
+ 17. matrix results_`fixed_effect'[1,1] = r(mean)
+ 18. 
+. * Table VIII -- Audience Data and Persuasion Rates
+. 
+. * Baseline Spec.
+. areg foxanyScar foxnews2000 `contrcens2000' `contrcens00m90' `contrcbl2000' if s
+> ample12000==1 [aweight=auddiaryScar], a(`fixed_effect') robust cluster(account20
+> 00)
+ 19. matrix reg_b = e(b)
+ 20. predict ehat, xbd 
+ 21. 
+. *** predict exposure rates given Z=1 and Z=0
+. 
+. scalar coeff_b = reg_b[1,1]
+ 22. scalar list coeff_b
+ 23. gen ehat1 = ehat + coeff_b - coeff_b*foxnews2000
+ 24. gen ehat0 = ehat - coeff_b*foxnews2000
+ 25. 
+. replace ehat1 = min(max(ehat1,0),1)
+ 26. replace ehat0 = min(max(ehat0,0),1)
+ 27. 
+. *** compute the upper bound for theta
+. 
+. gen ub_num1 = yhat1 + 1 - ehat1
+ 28. gen ub_num2 = yhat0 - ehat0
+ 29. gen ub_num = min(1, ub_num1) - max(0,ub_num2)
+ 30. gen ub_den = 1 - max(0,ub_num2)
+ 31. replace ub_den = max(ub_den, 1e-8)
+ 32. 
+. gen thetahat_ub = ub_num/ub_den
+ 33. sum thetahat_ub if auddiaryScar > 0 [aweight=auddiaryScar]
+ 34. matrix results_`fixed_effect'[2,1] = r(mean)
+ 35. 
+. *** compute the lower bound for theta_local
+. 
+. gen theta_local_den = min((1-yhat0),(ehat1-ehat0))
+ 36. 
+. gen late_weight = (ehat1-ehat0)
+ 37. sum late_weight if auddiaryScar > 0 [aweight=auddiaryScar]
+ 38. replace late_weight = late_weight/r(mean)
+ 39. 
+. gen theta_local = (thetahat_num/theta_local_den)*late_weight
+ 40. replace theta_local = min(max(theta_local,0),1)
+ 41. 
+. sum theta_local if auddiaryScar > 0 [aweight=auddiaryScar]
+ 42. matrix results_`fixed_effect'[3,1] = r(mean)
+ 43. 
+. drop yhat* theta* ehat* ub_* late*
+ 44. 
+. }
+(sum of wgt is 64,558,385.437175)
+
+Linear regression, absorbing indicators         Number of obs     =      9,256
+Absorbed variable: diststate                    No. of categories =        235
+                                                F(  44,   2991)   =    1016.41
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.9785
+                                                Adj R-squared     =     0.9778
+                                                Root MSE          =     0.0348
+
+                         (Std. Err. adjusted for 2,992 clusters in account2000)
+-------------------------------------------------------------------------------
+              |               Robust
+    new_y2000 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+    new_y1996 |   1.208599    .031613    38.23   0.000     1.146613    1.270584
+  foxnews2000 |   .0041596   .0018338     2.27   0.023     .0005639    .0077553
+      pop2000 |  -5.41e-06   .0000777    -0.07   0.945    -.0001577    .0001469
+       hs2000 |   .0924216    .021966     4.21   0.000     .0493517    .1354915
+      hsp2000 |   .0398735   .0192533     2.07   0.038     .0021224    .0776246
+  college2000 |  -.0623826   .0126107    -4.95   0.000    -.0871092    -.037656
+     male2000 |   .1119049   .0409483     2.73   0.006     .0316152    .1921947
+    black2000 |  -.0133176    .007727    -1.72   0.085    -.0284684    .0018333
+     hisp2000 |   .0227571   .0135419     1.68   0.093    -.0037952    .0493094
+     empl2000 |   .0975415   .0120083     8.12   0.000     .0739962    .1210868
+   unempl2000 |   .1577499   .0492045     3.21   0.001     .0612718    .2542281
+  married2000 |  -.0468824   .0285046    -1.64   0.100     -.102773    .0090082
+   income2000 |   -.000861   .0008582    -1.00   0.316    -.0025436    .0008217
+    urban2000 |  -.0200967   .0022458    -8.95   0.000    -.0245001   -.0156933
+     pop00m90 |   .0000293   .0009008     0.03   0.974     -.001737    .0017956
+      hs00m90 |  -.0286676   .0188859    -1.52   0.129    -.0656982    .0083631
+     hsp00m90 |    .035016   .0250322     1.40   0.162     -.014066     .084098
+ college00m90 |   .1348575   .0308983     4.36   0.000     .0742735    .1954416
+    male00m90 |  -.1375726   .0508999    -2.70   0.007     -.237375   -.0377702
+   black00m90 |  -.1072407   .0185453    -5.78   0.000    -.1436036   -.0708778
+    hisp00m90 |   -.152629    .025505    -5.98   0.000    -.2026382   -.1026198
+    empl00m90 |   -.034634   .0231346    -1.50   0.134    -.0799954    .0107274
+  unempl00m90 |  -.0697724   .0412358    -1.69   0.091    -.1506257     .011081
+ married00m90 |   .0405856   .0208465     1.95   0.052    -.0002894    .0814606
+  income00m90 |   .0018172   .0015083     1.20   0.228    -.0011402    .0047745
+   urban00m90 |   .0074828   .0057738     1.30   0.195    -.0038383    .0188039
+ poptot2000d2 |  -.0194795   .0055849    -3.49   0.000      -.03043   -.0085289
+ poptot2000d3 |  -.0214814   .0056321    -3.81   0.000    -.0325246   -.0104383
+ poptot2000d4 |   -.022605   .0056643    -3.99   0.000    -.0337113   -.0114988
+ poptot2000d5 |  -.0209296   .0065239    -3.21   0.001    -.0337214   -.0081378
+ poptot2000d6 |  -.0226763   .0058672    -3.86   0.000    -.0341804   -.0111722
+ poptot2000d7 |  -.0258937   .0059106    -4.38   0.000    -.0374829   -.0143045
+ poptot2000d8 |  -.0262695   .0057284    -4.59   0.000    -.0375016   -.0150375
+ poptot2000d9 |  -.0269433   .0059681    -4.51   0.000    -.0386454   -.0152413
+poptot2000d10 |   -.027168   .0064039    -4.24   0.000    -.0397244   -.0146115
+   noch2000d2 |   .0023185   .0022013     1.05   0.292    -.0019977    .0066346
+   noch2000d3 |   .0021131   .0023683     0.89   0.372    -.0025306    .0067569
+   noch2000d4 |   .0042461   .0024298     1.75   0.081    -.0005181    .0090103
+   noch2000d5 |   .0025915   .0023483     1.10   0.270    -.0020129    .0071959
+   noch2000d6 |   .0042029   .0022084     1.90   0.057    -.0001273    .0085332
+   noch2000d7 |   .0026505   .0024131     1.10   0.272     -.002081     .007382
+   noch2000d8 |   .0033207   .0030386     1.09   0.275    -.0026373    .0092787
+   noch2000d9 |   .0017097   .0026733     0.64   0.523    -.0035321    .0069514
+  noch2000d10 |    .000449   .0028023     0.16   0.873    -.0050456    .0059435
+        _cons |  -.0763635   .0246335    -3.10   0.002     -.124664   -.0280631
+-------------------------------------------------------------------------------
+   coeff_b =   .0041596
+(180 real changes made)
+(182 real changes made)
+(167 real changes made)
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+    thetahat |     568       11388    .0052496   .0016251          0   .0623692
+(sum of wgt is 11,388)
+
+Linear regression, absorbing indicators         Number of obs     =        568
+Absorbed variable: diststate                    No. of categories =         64
+                                                F(  43,    181)   =       4.33
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3105
+                                                Adj R-squared     =     0.1520
+                                                Root MSE          =     0.0460
+
+                           (Std. Err. adjusted for 182 clusters in account2000)
+-------------------------------------------------------------------------------
+              |               Robust
+   foxanyScar |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+  foxnews2000 |   .0371012   .0111603     3.32   0.001     .0150801    .0591223
+      pop2000 |  -.0002104   .0003945    -0.53   0.594    -.0009889     .000568
+       hs2000 |   -.187702   .1430182    -1.31   0.191    -.4698993    .0944953
+      hsp2000 |   .0569448   .1107134     0.51   0.608    -.1615101    .2753997
+  college2000 |  -.0231069   .0901376    -0.26   0.798    -.2009626    .1547488
+     male2000 |  -.0610881   .1753305    -0.35   0.728    -.4070426    .2848665
+    black2000 |  -.0494883    .032203    -1.54   0.126    -.1130299    .0140532
+     hisp2000 |   -.082742   .0647342    -1.28   0.203    -.2104727    .0449888
+     empl2000 |   .0782463   .0710645     1.10   0.272    -.0619751    .2184677
+   unempl2000 |   .0394691   .2040761     0.19   0.847    -.3632051    .4421434
+  married2000 |  -.0072708   .0732366    -0.10   0.921     -.151778    .1372365
+   income2000 |  -.0030205   .0029534    -1.02   0.308    -.0088481    .0028071
+    urban2000 |  -.0233733   .0213478    -1.09   0.275    -.0654958    .0187492
+     pop00m90 |   .0010764   .0034601     0.31   0.756     -.005751    .0079038
+      hs00m90 |   .0138687   .1648048     0.08   0.933    -.3113171    .3390545
+     hsp00m90 |   .0165906   .1588608     0.10   0.917    -.2968666    .3300478
+ college00m90 |   -.208976   .1727144    -1.21   0.228    -.5497685    .1318166
+    male00m90 |   .3649827   .2171625     1.68   0.095     -.063513    .7934784
+   black00m90 |  -.1208537   .0909009    -1.33   0.185    -.3002155     .058508
+    hisp00m90 |   .0440202   .1103467     0.40   0.690    -.1737111    .2617515
+    empl00m90 |   .0279898   .0937496     0.30   0.766    -.1569929    .2129724
+  unempl00m90 |  -.0420223   .2213947    -0.19   0.850    -.4788688    .3948241
+ married00m90 |   .0097304   .1249246     0.08   0.938    -.2367655    .2562263
+  income00m90 |   .0039804   .0038216     1.04   0.299    -.0035602    .0115211
+   urban00m90 |   .0071949   .0170066     0.42   0.673    -.0263618    .0407515
+ poptot2000d2 |  -.0015988   .0314486    -0.05   0.960    -.0636519    .0604542
+ poptot2000d3 |   .0506067   .0345219     1.47   0.144    -.0175104    .1187238
+ poptot2000d4 |   .0877663   .0409848     2.14   0.034     .0068969    .1686356
+ poptot2000d5 |   .0677766   .0333425     2.03   0.044     .0019865    .1335666
+ poptot2000d6 |    .061765   .0335141     1.84   0.067    -.0043635    .1278935
+ poptot2000d7 |   .0603022   .0328886     1.83   0.068    -.0045922    .1251966
+ poptot2000d8 |   .0563261   .0298523     1.89   0.061    -.0025772    .1152294
+ poptot2000d9 |   .0531993   .0307697     1.73   0.086    -.0075142    .1139128
+poptot2000d10 |   .0479035   .0287006     1.67   0.097    -.0087273    .1045342
+   noch2000d2 |  -.0357018   .0194547    -1.84   0.068     -.074089    .0026853
+   noch2000d3 |  -.0389095   .0192428    -2.02   0.045    -.0768786   -.0009403
+   noch2000d4 |  -.0543952   .0160518    -3.39   0.001    -.0860679   -.0227225
+   noch2000d5 |  -.0278834   .0191634    -1.46   0.147    -.0656959     .009929
+   noch2000d6 |   -.033401    .016623    -2.01   0.046    -.0662008   -.0006012
+   noch2000d7 |  -.0475923   .0170507    -2.79   0.006     -.081236   -.0139486
+   noch2000d8 |  -.0364809   .0163035    -2.24   0.026    -.0686503   -.0043115
+   noch2000d9 |  -.0270905   .0173941    -1.56   0.121    -.0614117    .0072308
+  noch2000d10 |  -.0483096   .0190346    -2.54   0.012    -.0858679   -.0107512
+        _cons |   .0928317   .1115316     0.83   0.406    -.1272377    .3129012
+-------------------------------------------------------------------------------
+(8,688 missing values generated)
+   coeff_b =  .03710124
+(8,688 missing values generated)
+(8,688 missing values generated)
+(8,691 real changes made)
+(8,771 real changes made)
+(161 real changes made)
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+ thetahat_ub |     568       11388      .99144   .0766226          0          1
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+ late_weight |     568       11388    .0355156    .005265          0   .0371012
+(563 real changes made)
+(8,703 missing values generated)
+(8,703 real changes made)
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+ theta_local |     568       11388    .1152999   .0145003          0   .1171211
+(sum of wgt is 64,558,385.437175)
+
+Linear regression, absorbing indicators         Number of obs     =      9,256
+Absorbed variable: countystate                  No. of categories =      1,156
+                                                F(  44,   2991)   =     849.62
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.9787
+                                                Adj R-squared     =     0.9755
+                                                Root MSE          =     0.0366
+
+                         (Std. Err. adjusted for 2,992 clusters in account2000)
+-------------------------------------------------------------------------------
+              |               Robust
+    new_y2000 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+    new_y1996 |   1.230274   .0441253    27.88   0.000     1.143755    1.316793
+  foxnews2000 |   .0091081   .0034971     2.60   0.009     .0022511     .015965
+      pop2000 |  -.0001282   .0000708    -1.81   0.070    -.0002671    .0000107
+       hs2000 |   .0793491   .0309237     2.57   0.010     .0187153    .1399829
+      hsp2000 |   .0220843   .0223165     0.99   0.322     -.021673    .0658415
+  college2000 |  -.0822172   .0157942    -5.21   0.000    -.1131858   -.0512486
+     male2000 |   .1106047   .0501872     2.20   0.028     .0121997    .2090096
+    black2000 |  -.0051293   .0083406    -0.61   0.539    -.0214832    .0112246
+     hisp2000 |   .0107859   .0157546     0.68   0.494     -.020105    .0416768
+     empl2000 |   .1076053    .016792     6.41   0.000     .0746802    .1405303
+   unempl2000 |   .0926358   .0617434     1.50   0.134     -.028428    .2136995
+  married2000 |  -.0811609   .0481184    -1.69   0.092    -.1755093    .0131876
+   income2000 |  -.0007691   .0013213    -0.58   0.561    -.0033599    .0018217
+    urban2000 |  -.0241262   .0034949    -6.90   0.000    -.0309788   -.0172736
+     pop00m90 |  -.0000314    .000644    -0.05   0.961    -.0012941    .0012312
+      hs00m90 |  -.0170265   .0239977    -0.71   0.478    -.0640801    .0300271
+     hsp00m90 |   .0358893   .0289156     1.24   0.215    -.0208072    .0925858
+ college00m90 |   .1276486   .0338719     3.77   0.000     .0612341    .1940631
+    male00m90 |   -.170091   .0657031    -2.59   0.010    -.2989189   -.0412631
+   black00m90 |  -.1146129   .0216314    -5.30   0.000    -.1570269   -.0721989
+    hisp00m90 |  -.1323094   .0368881    -3.59   0.000    -.2046381   -.0599807
+    empl00m90 |  -.0413189   .0291806    -1.42   0.157    -.0985349    .0158972
+  unempl00m90 |   -.004037   .0424768    -0.10   0.924    -.0873236    .0792496
+ married00m90 |   .0633087   .0301437     2.10   0.036     .0042043    .1224132
+  income00m90 |   .0012961   .0017551     0.74   0.460    -.0021452    .0047374
+   urban00m90 |   .0110961   .0060811     1.82   0.068    -.0008274    .0230197
+ poptot2000d2 |  -.0142509   .0055894    -2.55   0.011    -.0252105   -.0032914
+ poptot2000d3 |  -.0144308   .0058181    -2.48   0.013    -.0258387   -.0030228
+ poptot2000d4 |  -.0141413   .0060445    -2.34   0.019    -.0259931   -.0022895
+ poptot2000d5 |  -.0139496   .0072451    -1.93   0.054    -.0281555    .0002563
+ poptot2000d6 |  -.0167022     .00626    -2.67   0.008    -.0289766   -.0044278
+ poptot2000d7 |  -.0219083     .00573    -3.82   0.000    -.0331434   -.0106732
+ poptot2000d8 |  -.0200207    .006188    -3.24   0.001    -.0321538   -.0078876
+ poptot2000d9 |  -.0195629   .0063883    -3.06   0.002    -.0320888    -.007037
+poptot2000d10 |  -.0218104   .0073784    -2.96   0.003    -.0362776   -.0073431
+   noch2000d2 |  -.0017819   .0025527    -0.70   0.485    -.0067872    .0032234
+   noch2000d3 |   .0003455   .0037837     0.09   0.927    -.0070735    .0077645
+   noch2000d4 |   .0011972   .0028266     0.42   0.672     -.004345    .0067394
+   noch2000d5 |  -.0028888   .0029278    -0.99   0.324    -.0086295    .0028518
+   noch2000d6 |   .0034726   .0026385     1.32   0.188    -.0017007     .008646
+   noch2000d7 |  -.0018094   .0034641    -0.52   0.601    -.0086018    .0049829
+   noch2000d8 |   .0012169   .0035839     0.34   0.734    -.0058103    .0082442
+   noch2000d9 |   .0042516   .0039045     1.09   0.276    -.0034041    .0119073
+  noch2000d10 |  -.0027989   .0034471    -0.81   0.417    -.0095577      .00396
+        _cons |   -.048458   .0300062    -1.61   0.106     -.107293    .0103769
+-------------------------------------------------------------------------------
+   coeff_b =  .00910806
+(185 real changes made)
+(188 real changes made)
+(176 real changes made)
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+    thetahat |     568       11388    .0114113   .0028232          0   .0778659
+(sum of wgt is 11,388)
+
+Linear regression, absorbing indicators         Number of obs     =        568
+Absorbed variable: countystate                  No. of categories =         56
+                                                F(  43,    181)   =       3.66
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3507
+                                                Adj R-squared     =     0.2150
+                                                Root MSE          =     0.0443
+
+                           (Std. Err. adjusted for 182 clusters in account2000)
+-------------------------------------------------------------------------------
+              |               Robust
+   foxanyScar |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+  foxnews2000 |   .0251317   .0087069     2.89   0.004     .0079515    .0423118
+      pop2000 |  -.0002988   .0002555    -1.17   0.244    -.0008028    .0002053
+       hs2000 |   -.180692   .1259506    -1.43   0.153    -.4292124    .0678285
+      hsp2000 |   .0323996   .1017503     0.32   0.751    -.1683696    .2331689
+  college2000 |   .0123925   .0798805     0.16   0.877    -.1452243    .1700093
+     male2000 |   .0487039   .1653055     0.29   0.769    -.2774698    .3748775
+    black2000 |   .0030026   .0295793     0.10   0.919    -.0553621    .0613673
+     hisp2000 |  -.0539633   .0490178    -1.10   0.272    -.1506831    .0427566
+     empl2000 |   .0535238   .0601666     0.89   0.375    -.0651943     .172242
+   unempl2000 |  -.0160019   .2092685    -0.08   0.939    -.4289214    .3969177
+  married2000 |   .0245136   .0565849     0.43   0.665    -.0871374    .1361646
+   income2000 |  -.0019607   .0023768    -0.82   0.410    -.0066506    .0027291
+    urban2000 |   -.015342   .0225363    -0.68   0.497    -.0598096    .0291256
+     pop00m90 |   .0024469     .00229     1.07   0.287    -.0020716    .0069654
+      hs00m90 |   .1073882   .1350159     0.80   0.427    -.1590194    .3737958
+     hsp00m90 |   .1398818   .1390393     1.01   0.316    -.1344646    .4142282
+ college00m90 |  -.0956177   .1559873    -0.61   0.541    -.4034052    .2121698
+    male00m90 |   .4473339   .2059421     2.17   0.031     .0409779    .8536899
+   black00m90 |  -.0077246   .0893491    -0.09   0.931    -.1840244    .1685752
+    hisp00m90 |   .0300142   .0868216     0.35   0.730    -.1412984    .2013268
+    empl00m90 |    .019413   .0795544     0.24   0.807    -.1375603    .1763862
+  unempl00m90 |   .1263019   .2103803     0.60   0.549    -.2888114    .5414153
+ married00m90 |   .0085587   .1041103     0.08   0.935    -.1968672    .2139846
+  income00m90 |    .001204   .0025696     0.47   0.640    -.0038662    .0062741
+   urban00m90 |   .0021003   .0174974     0.12   0.905    -.0324248    .0366254
+ poptot2000d2 |   .0725604   .0519583     1.40   0.164    -.0299616    .1750824
+ poptot2000d3 |   .1091929   .0550766     1.98   0.049      .000518    .2178677
+ poptot2000d4 |   .1286545   .0364292     3.53   0.001     .0567739    .2005351
+ poptot2000d5 |   .1122884   .0491392     2.29   0.023      .015329    .2092477
+ poptot2000d6 |     .10905   .0508125     2.15   0.033     .0087889    .2093111
+ poptot2000d7 |   .1177331   .0495457     2.38   0.019     .0199717    .2154946
+ poptot2000d8 |   .1065975   .0489047     2.18   0.031     .0101008    .2030942
+ poptot2000d9 |   .1149617   .0496395     2.32   0.022     .0170151    .2129083
+poptot2000d10 |   .1054307   .0489886     2.15   0.033     .0087686    .2020928
+   noch2000d2 |  -.0199117   .0213328    -0.93   0.352    -.0620047    .0221813
+   noch2000d3 |  -.0222574    .019972    -1.11   0.267    -.0616654    .0171506
+   noch2000d4 |  -.0395655   .0181778    -2.18   0.031    -.0754332   -.0036978
+   noch2000d5 |  -.0105664   .0200213    -0.53   0.598    -.0500716    .0289387
+   noch2000d6 |  -.0213749   .0195969    -1.09   0.277    -.0600426    .0172928
+   noch2000d7 |  -.0358101   .0184379    -1.94   0.054     -.072191    .0005708
+   noch2000d8 |  -.0184784   .0189239    -0.98   0.330    -.0558182    .0188615
+   noch2000d9 |  -.0249143   .0192834    -1.29   0.198    -.0629634    .0131348
+  noch2000d10 |  -.0429575   .0209683    -2.05   0.042    -.0843313   -.0015837
+        _cons |  -.0531151   .1391198    -0.38   0.703    -.3276202    .2213901
+-------------------------------------------------------------------------------
+(8,688 missing values generated)
+   coeff_b =  .02513168
+(8,688 missing values generated)
+(8,688 missing values generated)
+(8,697 real changes made)
+(8,756 real changes made)
+(171 real changes made)
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+ thetahat_ub |     568       11388    .9921959   .0755349          0          1
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+ late_weight |     568       11388    .0241733   .0037969          0   .0251317
+(559 real changes made)
+(8,708 missing values generated)
+(8,708 real changes made)
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+ theta_local |     568       11388    .3699649   .0491657          0   .3767817
+
+. 
+. *******************************************
+. ****  Printing result in a LaTeX file *****
+. *******************************************
+.                                                                                 
+>           
+. matrix results = (results_diststate , results_countystate)
+
+. 
+. frmttable using "$Persuasion/results/tableD1", statmat(results) tex replace sdec
+> (3) ///
+>         ctitles("", U.S. House district fixed effects, County fixed effects )  /
+> //
+>         rtitles("APR (LB)" \ "APR (UB)" \ "LPR (LB)" )  ///
+>         title("TABLE D1. Persuasion Rates: Fox News Effects")
+(note: file /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/results/tabl
+> eD1.tex not found)
+                   TABLE D1. Persuasion Rates: Fox News Effects
+      ----------------------------------------------------------------------
+                  U.S. House district fixed effects  County fixed effects  
+      ----------------------------------------------------------------------
+       APR (LB)                 0.005                        0.011         
+       APR (UB)                 0.991                        0.992         
+       LPR (LB)                 0.115                        0.370         
+      ----------------------------------------------------------------------
+
+
+.         
+. 
+end of do-file
+
+. 
+. *       TABLE E1. Persuasive Effect by Treatment in Landry et al. (2006)
+. *do "$Persuasion/scripts/tableE1.do"
+. 
+. *       TABLE E2. Persuasive Effect by Treatment in DLM
+. *do "$Persuasion/scripts/tableE2.do"
+. 
+. *       TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
+. *do "$Persuasion/scripts/tableH1.do"
+. 
+. 
+. 
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time:  7 Nov 2022 13:13:45
+
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-13.13.44.log.txt
+  log type:  text
+ closed on:   7 Nov 2022, 13:13:45
+----------------------------------------------------------------------------------

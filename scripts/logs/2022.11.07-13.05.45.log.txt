@@ -1,0 +1,277 @@
+----------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-13.05.45.log.txt
+  log type:  text
+ opened on:   7 Nov 2022, 13:05:45
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  7 Nov 2022 13:05:45
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 16.1
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 30 Mar 2021
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.4.0
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data
+> .do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang20
+> 19", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE D1. Persuasion Rates: Fox News Effects
+. do "$Persuasion/scripts/tableD1.do"
+
+. ************
+. * SCRIPT:   tableD1.do
+. * PURPOSE:  Creates Table D1
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "FoxNewsFinalDataQJE" is from DellaVigna and Kaplan 
+> (QJE, 2007).
+. *       The dataset is available at http://eml.berkeley.edu/~sdellavi/index.html
+> .
+. *   We thank the authors of the paper to make their data available online. 
+. *
+. * NOTES
+. *       An alternative measure of the dependent variable is used. 
+. *   That is, Y = (Republican voting share as a share of the voting-age populatio
+> n) 
+. ************
+. 
+. use "$Persuasion/data/DellaVignaKaplan2007/FoxNewsFinalDataQJE.dta", clear
+
+. 
+. *** Generate macros of controls
+. ** Census Controls
+. foreach tc in "2000" "00m90" {
+  2.         local contrcens`tc'= "pop`tc' hs`tc' hsp`tc' college`tc' male`tc' bla
+> ck`tc' hisp`tc' empl`tc' unempl`tc' married`tc' income`tc' urban`tc'"
+  3.         local contrcenssh`tc'stat= "pop`tc'stat hsp`tc' college`tc' black`tc'
+>  hisp`tc' unempl`tc' urban`tc'"
+  4. }
+
+. ** Cable Controls
+. foreach tc in "2000" {
+  2.         local contrcbl`tc'= "poptot`tc'd2-poptot`tc'd10 noch`tc'd2-noch`tc'd1
+> 0"
+  3. }
+
+. 
+. ** Keep only basic sample
+. keep if sample12000==1
+(870 observations deleted)
+
+. 
+. * Table V -- Presidential Effects -- Robustness and Presidential Delayed Effects
+. * Lagged vote share
+. 
+. gen new_y2000 = reppresvotes2000/pop18p2000
+
+. gen new_y1996 = reppresvotes1996/pop18p1996
+
+. 
+. sum new_y2000 new_y1996 [aweight=totpresvotes1996]
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   new_y2000 |   9,256    32912454    .4163778   1.120204   .0008402      96.25
+   new_y1996 |   9,256    32912454    .3345691   .8960611   .0009127      67.75
+
+. 
+. **************************************************
+. *** Estimating parameters for persuation rates ***
+. 
+. local fixed_effect_list = "diststate countystate"
+
+. 
+. foreach fixed_effect in  `fixed_effect_list' {
+  2. 
+. areg new_y2000 new_y1996 foxnews2000 `contrcens2000' `contrcens00m90' `contrcbl2
+> 000' if sample12000==1 [aweight=pop18p1996], a(`fixed-effect') robust cluster(ac
+> count2000)
+  3. 
+. matrix reg_b = e(b)
+  4. predict yhat, xbd 
+  5. 
+. *** predict Y given Z=1 and Z=0
+. 
+. scalar coeff_b = reg_b[1,2]
+  6. scalar list coeff_b
+  7. gen yhat1 = yhat + coeff_b - coeff_b*foxnews2000
+  8. gen yhat0 = yhat - coeff_b*foxnews2000
+  9. 
+. replace yhat1 = min(max(yhat1,0),1)
+ 10. replace yhat0 = min(max(yhat0,0),1)
+ 11. 
+. gen thetahat_num = (yhat1-yhat0)
+ 12. gen thetahat_den = (1-yhat0)
+ 13. replace thetahat_den = max(thetahat_den, 1e-8)
+ 14. gen thetahat = thetahat_num/thetahat_den
+ 15. 
+. *** Lower bound for theta 
+. 
+. sum thetahat if auddiaryScar > 0 [aweight=auddiaryScar]
+ 16. 
+. * Table VIII -- Audience Data and Persuasion Rates
+. 
+. 
+. * Baseline Spec.
+. areg foxanyScar foxnews2000 `contrcens2000' `contrcens00m90' `contrcbl2000' if s
+> ample12000==1 [aweight=auddiaryScar], a(diststate) robust cluster(account2000)
+ 17. matrix reg_b = e(b)
+ 18. predict ehat, xbd 
+ 19. 
+. 
+. *** predict exposure rates given Z=1 and Z=0
+. 
+. scalar coeff_b = reg_b[1,1]
+ 20. scalar list coeff_b
+ 21. gen ehat1 = ehat + coeff_b - coeff_b*foxnews2000
+ 22. gen ehat0 = ehat - coeff_b*foxnews2000
+ 23. 
+. replace ehat1 = min(max(ehat1,0),1)
+ 24. replace ehat0 = min(max(ehat0,0),1)
+ 25. 
+. *** compute the upper bound for theta
+. 
+. gen ub_num1 = yhat1 + 1 - ehat1
+ 26. gen ub_num2 = yhat0 - ehat0
+ 27. gen ub_num = min(1, ub_num1) - max(0,ub_num2)
+ 28. gen ub_den = 1 - max(0,ub_num2)
+ 29. replace ub_den = max(ub_den, 1e-8)
+ 30. 
+. gen thetahat_up = ub_num/ub_den
+ 31. sum thetahat_up ub_num1 ub_num2 ub_num ub_den  if auddiaryScar > 0 [aweight=a
+> uddiaryScar]
+ 32. 
+. 
+. *** compute the lower bound for theta_local
+. 
+. gen theta_local_den = min((1-yhat0),(ehat1-ehat0))
+ 33. 
+. gen late_weight = (ehat1-ehat0)
+ 34. sum late_weight if auddiaryScar > 0 [aweight=auddiaryScar]
+ 35. replace late_weight = late_weight/r(mean)
+ 36. 
+. gen theta_local = (thetahat_num/theta_local_den)*late_weight
+ 37. replace theta_local = min(max(theta_local,0),1)
+ 38. 
+. sum theta_local  if auddiaryScar > 0 [aweight=auddiaryScar]
+ 39. dis "The lower bound of theta_late = " r(mean)
+ 40. 
+. drop yhat* theta* ehat* ub_* late*
+ 41. 
+. }
+option absorb() required
+r(198);
+
+end of do-file
+r(198);
+
+end of do-file
+
+r(198);
+
+. do "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/run.do"
+
+. **********************
+. * OVERVIEW
+. *   This script generates selected tables for the paper:
+. *       "IDENTIFYING THE EFFECT OF PERSUASION" (Sung Jae Jun and Sokbae Lee)
+. *   All data are stored in /data
+. *   All tables are outputted to /results
+. * 
+. * SOFTWARE REQUIREMENTS
+. *   Stata version 17 or newer
+. *
+. * PACKAGE REQUIREMENTS
+. *   persuasio (can be installed by ssc install persuasio, replace)
+. *   outreg (can be installed by ssc install outreg, replace)
+. *
+. * TO PERFORM A CLEAN RUN, DELETE THE FOLLOWING FOLDER:
+. *   $Persuasion/results
+. *
+. * ACKNOWLEDGMENT
+. *       The structure of the replication files is forked from 
+. *   Illinois Workplace Wellness Study: Public Use Data Repository
+. *   at https://github.com/reifjulian/illinois-wellness-data
+. **********************
+. 
+. **********************
+. * Parameters defined by user
+. **********************
+. 
+. * "Persuasion" points to the root directory, which contains the subfolders "data
+> " and "scripts"
+. global Persuasion "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files"
+
+. 
+. * Number of bootstraps for Table 2
+. * The published paper used nbt = 10000. Runtime is approximately 3 hours on an i
+> Mac (M1, 2021).
+. * Use nbt = 10 to check whether replication code runs without an error. 
+. global nbt = 10000
+
+. 
+. * set seed for replicability 
+. set seed 987975 
+
+. 
+. **********************
+. **********************
+. 
+. * Confirm that the global for the root directory has been defined
+. assert !missing("$Persuasion")
+
+. 
+. * Initialize log and record system parameters
+. clear 
+
+. set more off
+
+. cap mkdir "$Persuasion/scripts/logs"
+
+. cap log close

@@ -1,0 +1,179 @@
+-------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.11-08.02.33.log.txt
+  log type:  text
+ opened on:  11 Nov 2022, 08:02:33
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time: 11 Nov 2022 08:02:33
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 17
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 23 Aug 2022
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.5.1
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data.do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang2019", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE D1. Persuasion Rates: Fox News Effects
+. *do "$Persuasion/scripts/tableD1.do"
+. 
+. *       FIGURE D1. Estimates of Marginal and Average Persuasion Rates
+. do "$Persuasion/scripts/figureD1.do"
+
+. ************
+. * SCRIPT:   figureD1.do
+. * PURPOSE:  Creates Figure D1
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "NTV_Individual_Data.dta" is from Enikolopov, Petrova, and Zhuravskaya (AER, 2011).
+. ************
+. 
+. use "$Persuasion/data/EnikolopovPetrovaZhuravskaya2011/NTV_Individual_Data.dta", clear
+
+. 
+. local basic = "logpop98 wage98_ln"
+
+. local sociodem = "male age educ1 married consump"
+
+. 
+. local party_list = "Unity OVR"
+
+. 
+. *** create outcome variables based on directional treatment ***
+. 
+. gen y_vote_Unity = 0
+
+. replace y_vote_Unity = 1 if vote_Unity == 0   
+(993 real changes made)
+
+. 
+. gen y_vote_OVR = 0
+
+. replace y_vote_OVR = 1 if vote_OVR == 1   
+(166 real changes made)
+
+. 
+. *** predict the exposure rate, that is, e(X,Z) = P(T=1|X,Z) ***
+. *** specification: linear in Z and X ***
+. 
+. probit  Watches_NTV_1999 tvmaxtveloss5050powerA `sociodem' `basic' [pweight=kishweig]
+
+Iteration 0:   log pseudolikelihood = -809.06705  
+Iteration 1:   log pseudolikelihood = -741.86673  
+Iteration 2:   log pseudolikelihood =  -741.6003  
+Iteration 3:   log pseudolikelihood = -741.60028  
+
+Probit regression                                       Number of obs =  1,185
+                                                        Wald chi2(8)  = 105.94
+                                                        Prob > chi2   = 0.0000
+Log pseudolikelihood = -741.60028                       Pseudo R2     = 0.0834
+
+----------------------------------------------------------------------------------------
+                       |               Robust
+      Watches_NTV_1999 | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-----------------------+----------------------------------------------------------------
+tvmaxtveloss5050powerA |   .0068679   .0011649     5.90   0.000     .0045848    .0091511
+                  male |   .2299747   .0893844     2.57   0.010     .0547845    .4051648
+                   age |  -.0063456   .0029081    -2.18   0.029    -.0120454   -.0006458
+                 educ1 |   .2459444   .1188836     2.07   0.039     .0129369    .4789519
+               married |   .0520022   .0908934     0.57   0.567    -.1261455    .2301499
+               consump |   .0711412   .0341425     2.08   0.037     .0042231    .1380594
+              logpop98 |  -.2162026    .045017    -4.80   0.000    -.3044343    -.127971
+             wage98_ln |   .4838216   .1418335     3.41   0.001     .2058331    .7618101
+                 _cons |  -2.154867   .9164043    -2.35   0.019    -3.950986   -.3587474
+----------------------------------------------------------------------------------------
+
+. predict phat
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. ***
+. 
+. foreach party in  $party_list {
+  2. 
+.         * generate Y*(1-T)
+.     gen notwatch_vote_`party' = 0
+  3.         replace notwatch_vote_`party' = 1 if y_vote_`party' == 1 & Watches_NTV_1999==0
+  4.         
+.         * linear probability model of Y given X and e(X,Z)
+.         * specification: linear in X and cubic in e(X,Z), while interacting some of X and e(X,Z)
+.         reg y_vote_`party' `sociodem' `basic' ///
+>                         c.phat c.phat#c.phat c.phat#c.phat#c.phat ///
+>                         c.phat#male c.phat#age c.phat#educ1 c.phat#married c.phat#consump ///
+>                         [pweight=kishweig]
+  5.         
+.         margins, dydx(phat) at(phat = (0.5))
+  6. 
+. }
+
+. 
+. 
+end of do-file
+
+. 
+. *       TABLE E1. Persuasive Effect by Treatment in Landry et al. (2006)
+. *do "$Persuasion/scripts/tableE1.do"
+. *       TABLE E2. Persuasive Effect by Treatment in DLM
+. *do "$Persuasion/scripts/tableE2.do"
+. 
+. *       TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
+. *do "$Persuasion/scripts/tableH1.do"
+. 
+. 
+. 
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time: 11 Nov 2022 08:02:33
+
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.11-08.02.33.log.txt
+  log type:  text
+ closed on:  11 Nov 2022, 08:02:33
+-------------------------------------------------------------------------------------------------------------------------------------------

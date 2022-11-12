@@ -1,0 +1,503 @@
+-------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.12-09.44.29.log.txt
+  log type:  text
+ opened on:  12 Nov 2022, 09:44:29
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time: 12 Nov 2022 09:44:29
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 17
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 23 Aug 2022
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.5.1
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data.do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang2019", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE D1. Persuasion Rates: Fox News Effects
+. *do "$Persuasion/scripts/tableD1.do"
+. 
+. *       FIGURE D1. Estimates of Marginal and Average Persuasion Rates
+. do "$Persuasion/scripts/tableD2.do"
+
+. ************
+. * SCRIPT:   tableD2.do
+. * PURPOSE:  Creates Table D2
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "NTV_Individual_Data.dta" is from Enikolopov, Petrova, and Zhuravskaya (AER, 2011).
+. ************
+. 
+. use "$Persuasion/data/EnikolopovPetrovaZhuravskaya2011/NTV_Individual_Data.dta", clear
+
+. 
+. local basic = "logpop98 wage98_ln"
+
+. local sociodem = "male age educ1 married consump"
+
+. 
+. local party_list = "Unity OVR"
+
+. 
+. *** create outcome variables based on directional treatment ***
+. 
+. gen y_vote_Unity = 0
+
+. replace y_vote_Unity = 1 if vote_Unity == 0   
+(993 real changes made)
+
+. 
+. gen y_vote_OVR = 0
+
+. replace y_vote_OVR = 1 if vote_OVR == 1   
+(166 real changes made)
+
+. 
+. *** predict the exposure rate, that is, e(X,Z) = P(T=1|X,Z) ***
+. *** specification: linear in X and cubic in Z, while interacting some of X and Z ***
+. 
+. reg Watches_NTV_1999 `sociodem' `basic' ///
+>     c.tvmaxtveloss5050powerA c.tvmaxtveloss5050powerA#c.tvmaxtveloss5050powerA /// 
+>     c.tvmaxtveloss5050powerA#c.tvmaxtveloss5050powerA#c.tvmaxtveloss5050powerA /// 
+>         c.tvmaxtveloss5050powerA#i.male c.tvmaxtveloss5050powerA#c.age ///
+>         c.tvmaxtveloss5050powerA#i.educ1 c.tvmaxtveloss5050powerA#i.married ///
+>         c.tvmaxtveloss5050powerA#c.consump ///
+>         [pweight=kishweig]
+(sum of wgt is 1,209.50712454319)
+
+Linear regression                               Number of obs     =      1,185
+                                                F(15, 1169)       =      12.05
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1255
+                                                Root MSE          =     .45932
+
+--------------------------------------------------------------------------------------------------------------------
+                                                   |               Robust
+                                  Watches_NTV_1999 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------------------------------------+----------------------------------------------------------------
+                                              male |   .0710327   .0314566     2.26   0.024      .009315    .1327504
+                                               age |  -.0027869     .00104    -2.68   0.007    -.0048274   -.0007464
+                                             educ1 |   .0879361   .0431719     2.04   0.042      .003233    .1726392
+                                           married |   .0218929   .0327497     0.67   0.504    -.0423618    .0861477
+                                           consump |   .0161872   .0123837     1.31   0.191    -.0081095    .0404839
+                                          logpop98 |  -.0633948   .0143287    -4.42   0.000    -.0915076    -.035282
+                                         wage98_ln |   .1119444   .0399864     2.80   0.005     .0334912    .1903975
+                            tvmaxtveloss5050powerA |   .0022791   .0015472     1.47   0.141    -.0007565    .0053146
+                                                   |
+ c.tvmaxtveloss5050powerA#c.tvmaxtveloss5050powerA |  -.0000333   .0000111    -3.00   0.003    -.0000551   -.0000115
+                                                   |
+ c.tvmaxtveloss5050powerA#c.tvmaxtveloss5050powerA#|
+                          c.tvmaxtveloss5050powerA |  -3.55e-07   2.26e-07    -1.57   0.116    -7.99e-07    8.82e-08
+                                                   |
+                     male#c.tvmaxtveloss5050powerA |
+                                                1  |   .0012869    .000576     2.23   0.026     .0001568    .0024169
+                                                   |
+                    c.tvmaxtveloss5050powerA#c.age |    .000029   .0000193     1.50   0.133    -8.85e-06    .0000668
+                                                   |
+                    educ1#c.tvmaxtveloss5050powerA |
+                                                1  |  -.0009003   .0007949    -1.13   0.258    -.0024598    .0006593
+                                                   |
+                  married#c.tvmaxtveloss5050powerA |
+                                                1  |   .0001573   .0006008     0.26   0.793    -.0010214     .001336
+                                                   |
+                c.tvmaxtveloss5050powerA#c.consump |   .0004668   .0002294     2.04   0.042     .0000168    .0009169
+                                                   |
+                                             _cons |   .1901667    .283112     0.67   0.502    -.3652977    .7456311
+--------------------------------------------------------------------------------------------------------------------
+
+. predict phat
+(option xb assumed; fitted values)
+(4,658 missing values generated)
+
+. *** fitted probability is truncated to be between 0 and 1 ***
+. replace phat = 0.001 if phat < 0.001 & phat != .
+(0 real changes made)
+
+. replace phat = 0.999 if phat > 0.999 & phat != .
+(10 real changes made)
+
+. 
+. ***
+. 
+. foreach party in `party_list' {
+  2. 
+.         * generate Y*(1-T)
+.     gen notwatch_vote_`party' = 0
+  3.         replace notwatch_vote_`party' = 1 if y_vote_`party' == 1 & Watches_NTV_1999==0
+  4.                 
+.         * linear probability model of Y given X and e(X,Z)
+.         * specification: linear in X and cubic in e(X,Z), while interacting some of X and e(X,Z)
+.         reg y_vote_`party' `sociodem' `basic' ///
+>                         c.phat c.phat#c.phat c.phat#c.phat#c.phat  ///
+>                         c.phat#i.male c.phat#c.age c.phat#i.educ1 c.phat#i.married c.phat#c.consump ///
+>                         [pweight=kishweig]
+  5.         
+.         margins [pweight=kishweig], dydx(phat) at(phat = (0.4(0.1)0.6))
+  6.         matrix num = r(b)
+  7. 
+.         * linear probability model of Y*(1-T) given X and e(X,Z)
+.         * specification: linear in X and cubic in e(X,Z), while interacting some of X and e(X,Z)
+.         reg notwatch_vote_`party' `sociodem' `basic' ///
+>                         c.phat c.phat#c.phat c.phat#c.phat#c.phat  ///
+>                         c.phat#i.male c.phat#c.age c.phat#i.educ1 c.phat#i.married c.phat#c.consump ///
+>                         [pweight=kishweig]
+  8.         
+.         margins [pweight=kishweig], dydx(phat) at(phat = (0.4(0.1)0.6))
+  9.         matrix den = J(1,3,1) + r(b)
+ 10.         
+.         mata: st_matrix("mte", st_matrix("num") :/ st_matrix("den"))
+ 11.         matrix list mte
+ 12.         
+.         mata: st_matrix("mte_alt", st_matrix("num_alt") :/ st_matrix("den"))
+ 13.         matrix list mte_alt
+ 14. 
+.         matrix results_`party' = mte'
+ 15.         
+. }
+(313 real changes made)
+(sum of wgt is 1,312.04910933971)
+
+Linear regression                               Number of obs     =      1,300
+                                                F(15, 1284)       =       3.78
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0464
+                                                Root MSE          =     .48941
+
+--------------------------------------------------------------------------------------
+                     |               Robust
+        y_vote_Unity | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+                male |   .2131875   .1315465     1.62   0.105    -.0448821    .4712571
+                 age |   .0104915   .0044087     2.38   0.017     .0018425    .0191405
+               educ1 |  -.0279751   .1597158    -0.18   0.861    -.3413077    .2853575
+             married |   .0365946   .1282049     0.29   0.775    -.2149195    .2881086
+             consump |  -.0281528   .0478872    -0.59   0.557    -.1220986    .0657931
+            logpop98 |   .0004023   .0154823     0.03   0.979     -.029971    .0307756
+           wage98_ln |  -.0928955   .0601002    -1.55   0.122    -.2108008    .0250098
+                phat |   1.402215   1.541928     0.91   0.363    -1.622759    4.427189
+                     |
+       c.phat#c.phat |  -2.200412   2.680233    -0.82   0.412    -7.458529    3.057704
+                     |
+c.phat#c.phat#c.phat |   1.409859   1.580066     0.89   0.372    -1.689935    4.509653
+                     |
+         male#c.phat |
+                  1  |  -.3580396   .2141722    -1.67   0.095    -.7782055    .0621263
+                     |
+        c.phat#c.age |  -.0063223   .0069031    -0.92   0.360    -.0198648    .0072203
+                     |
+        educ1#c.phat |
+                  1  |   .2070661   .2808882     0.74   0.461    -.3439841    .7581164
+                     |
+      married#c.phat |
+                  1  |   .0021141     .20862     0.01   0.992    -.4071593    .4113875
+                     |
+    c.phat#c.consump |   .0388528   .0727929     0.53   0.594    -.1039534     .181659
+                     |
+               _cons |   .5072082   .4806514     1.06   0.292      -.43574    1.450156
+--------------------------------------------------------------------------------------
+
+Average marginal effects                                 Number of obs = 1,300
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  phat
+1._at: phat = .4
+2._at: phat = .5
+3._at: phat = .6
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+phat         |
+         _at |
+          1  |   .2187767   .2445433     0.89   0.371    -.2609716    .6985249
+          2  |   .1593561   .1901383     0.84   0.402    -.2136598     .532372
+          3  |   .1845271   .1866547     0.99   0.323    -.1816546    .5507087
+------------------------------------------------------------------------------
+(sum of wgt is 1,312.04910933971)
+
+Linear regression                               Number of obs     =      1,300
+                                                F(15, 1284)       =       9.26
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1055
+                                                Root MSE          =     .37402
+
+--------------------------------------------------------------------------------------
+                     |               Robust
+ notwatch_vote_Unity | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+                male |    .145885   .1160131     1.26   0.209     -.081711     .373481
+                 age |   .0068494   .0037299     1.84   0.067    -.0004679    .0141668
+               educ1 |   .0375728    .143698     0.26   0.794    -.2443359    .3194815
+             married |   .1667302   .1086109     1.54   0.125    -.0463442    .3798046
+             consump |  -.0401873   .0393384    -1.02   0.307    -.1173619    .0369872
+            logpop98 |  -.0071428   .0119542    -0.60   0.550    -.0305947    .0163091
+           wage98_ln |  -.0656497   .0437853    -1.50   0.134    -.1515482    .0202489
+                phat |   .4627006   1.325108     0.35   0.727    -2.136914    3.062315
+                     |
+       c.phat#c.phat |  -1.476045    2.19348    -0.67   0.501    -5.779245    2.827154
+                     |
+c.phat#c.phat#c.phat |   1.053204   1.212777     0.87   0.385    -1.326037    3.432446
+                     |
+         male#c.phat |
+                  1  |  -.1949583   .1740235    -1.12   0.263      -.53636    .1464433
+                     |
+        c.phat#c.age |  -.0066951   .0055293    -1.21   0.226    -.0175426    .0041523
+                     |
+        educ1#c.phat |
+                  1  |    .005878   .2294862     0.03   0.980    -.4443311    .4560871
+                     |
+      married#c.phat |
+                  1  |   -.242959   .1626022    -1.49   0.135    -.5619542    .0760363
+                     |
+    c.phat#c.consump |   .0515283   .0548169     0.94   0.347    -.0560122    .1590688
+                     |
+               _cons |   .5563065   .3875773     1.44   0.151    -.2040478    1.316661
+--------------------------------------------------------------------------------------
+
+Average marginal effects                                 Number of obs = 1,300
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  phat
+1._at: phat = .4
+2._at: phat = .5
+3._at: phat = .6
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+phat         |
+         _at |
+          1  |  -.5598796   .2092407    -2.68   0.008    -.9703707   -.1493885
+          2  |  -.5707235   .1508116    -3.78   0.000    -.8665876   -.2748593
+          3  |   -.518375   .1511988    -3.43   0.001    -.8149989   -.2217512
+------------------------------------------------------------------------------
+
+mte[1,3]
+           c1         c2         c3
+r1   .4970837  .37122014  .38313433
+
+mte_alt[1,3]
+            c1          c2          c3
+r1  -.08126759   .18358254   .38759958
+(30 real changes made)
+(sum of wgt is 1,312.04910933971)
+
+Linear regression                               Number of obs     =      1,300
+                                                F(15, 1284)       =       2.74
+                                                Prob > F          =     0.0004
+                                                R-squared         =     0.0288
+                                                Root MSE          =     .24981
+
+--------------------------------------------------------------------------------------
+                     |               Robust
+          y_vote_OVR | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+                male |   .0487863   .0672426     0.73   0.468    -.0831311    .1807038
+                 age |  -.0050184    .002914    -1.72   0.085    -.0107351    .0006982
+               educ1 |   .0029715   .0857073     0.03   0.972    -.1651702    .1711132
+             married |  -.0045033   .0588179    -0.08   0.939     -.119893    .1108865
+             consump |    .052886   .0269761     1.96   0.050    -.0000361     .105808
+            logpop98 |   .0036632   .0077121     0.47   0.635    -.0114665     .018793
+           wage98_ln |   -.060809   .0331464    -1.83   0.067    -.1258361    .0042181
+                phat |    -.48694      .7329    -0.66   0.507    -1.924753     .950873
+                     |
+       c.phat#c.phat |   .5015286   1.275199     0.39   0.694    -2.000173     3.00323
+                     |
+c.phat#c.phat#c.phat |   .0567699   .7341249     0.08   0.938    -1.383446    1.496986
+                     |
+         male#c.phat |
+                  1  |  -.1713035   .1093515    -1.57   0.117    -.3858307    .0432238
+                     |
+        c.phat#c.age |   .0100909   .0046238     2.18   0.029     .0010199     .019162
+                     |
+        educ1#c.phat |
+                  1  |   -.045682    .160589    -0.28   0.776    -.3607276    .2693636
+                     |
+      married#c.phat |
+                  1  |   3.43e-06   .0954941     0.00   1.000    -.1873381     .187345
+                     |
+    c.phat#c.consump |  -.0884845   .0385591    -2.29   0.022    -.1641302   -.0128388
+                     |
+               _cons |   .5753018   .2545505     2.26   0.024     .0759212    1.074682
+--------------------------------------------------------------------------------------
+
+Average marginal effects                                 Number of obs = 1,300
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  phat
+1._at: phat = .4
+2._at: phat = .5
+3._at: phat = .6
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+phat         |
+         _at |
+          1  |   .0020138   .1132599     0.02   0.986     -.220181    .2242085
+          2  |   .1176473   .1027201     1.15   0.252    -.0838704     .319165
+          3  |   .2366871   .1111253     2.13   0.033       .01868    .4546943
+------------------------------------------------------------------------------
+(sum of wgt is 1,312.04910933971)
+
+Linear regression                               Number of obs     =      1,300
+                                                F(15, 1284)       =       1.66
+                                                Prob > F          =     0.0538
+                                                R-squared         =     0.0194
+                                                Root MSE          =     .14481
+
+--------------------------------------------------------------------------------------
+                     |               Robust
+   notwatch_vote_OVR | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------+----------------------------------------------------------------
+                male |  -.0283817   .0419986    -0.68   0.499    -.1107751    .0540116
+                 age |  -.0029053   .0021412    -1.36   0.175     -.007106    .0012955
+               educ1 |  -.0258111   .0638877    -0.40   0.686    -.1511469    .0995247
+             married |   .0124913   .0430737     0.29   0.772    -.0720112    .0969938
+             consump |   .0011667    .008389     0.14   0.889    -.0152909    .0176243
+            logpop98 |   .0075579   .0045669     1.65   0.098    -.0014015    .0165173
+           wage98_ln |  -.0391419   .0160484    -2.44   0.015    -.0706259   -.0076579
+                phat |   .2328176   .3668232     0.63   0.526    -.4868209    .9524562
+                     |
+       c.phat#c.phat |  -.8965307   .6403167    -1.40   0.162    -2.152712     .359651
+                     |
+c.phat#c.phat#c.phat |   .6172185   .3637334     1.70   0.090    -.0963586    1.330796
+                     |
+         male#c.phat |
+                  1  |   .0160307   .0595603     0.27   0.788    -.1008155     .132877
+                     |
+        c.phat#c.age |   .0048638    .003165     1.54   0.125    -.0013453    .0110729
+                     |
+        educ1#c.phat |
+                  1  |   .0184957   .0996823     0.19   0.853    -.1770623    .2140537
+                     |
+      married#c.phat |
+                  1  |  -.0184505   .0603789    -0.31   0.760    -.1369026    .1000017
+                     |
+    c.phat#c.consump |  -.0097724   .0111396    -0.88   0.381    -.0316262    .0120814
+                     |
+               _cons |   .3203499   .1621278     1.98   0.048     .0022854    .6384145
+--------------------------------------------------------------------------------------
+
+Average marginal effects                                 Number of obs = 1,300
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  phat
+1._at: phat = .4
+2._at: phat = .5
+3._at: phat = .6
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+phat         |
+         _at |
+          1  |   -.051734   .0571833    -0.90   0.366     -.163917    .0604491
+          2  |  -.0643911   .0558717    -1.15   0.249     -.174001    .0452187
+          3  |  -.0400152   .0578033    -0.69   0.489    -.1534144    .0733841
+------------------------------------------------------------------------------
+
+mte[1,3]
+           c1         c2         c3
+r1  .00212362  .12574415    .246553
+
+mte_alt[1,3]
+            c1          c2          c3
+r1  -.03771887   .08423143   .19445894
+
+. 
+. matrix results = (results_Unity, results_OVR)
+
+. 
+. frmttable using "$Persuasion/results/tableD2", statmat(results) tex replace sdec(3) ///
+>         ctitles("", "Not Vote for Unity", "Vote for OVR" )  ///
+>         rtitles("v = 0.4" \ "v = 0.5" \ "v = 0.6") ///
+>         title("Estimates of Marginal Persuasion Rates")
+(note: file /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/results/tableD2.tex not found)
+                                                  Estimates of Marginal Persuasion Rates
+                                               ---------------------------------------------
+                                                          Not Vote for Unity  Vote for OVR 
+                                               ---------------------------------------------
+                                                v = 0.4         0.497            0.002     
+                                                v = 0.5         0.371            0.126     
+                                                v = 0.6         0.383            0.247     
+                                               ---------------------------------------------
+
+
+. 
+end of do-file
+
+. 
+. *       TABLE E1. Persuasive Effect by Treatment in Landry et al. (2006)
+. *do "$Persuasion/scripts/tableE1.do"
+. *       TABLE E2. Persuasive Effect by Treatment in DLM
+. *do "$Persuasion/scripts/tableE2.do"
+. 
+. *       TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
+. *do "$Persuasion/scripts/tableH1.do"
+. 
+. 
+. 
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time: 12 Nov 2022 09:44:29
+
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.12-09.44.29.log.txt
+  log type:  text
+ closed on:  12 Nov 2022, 09:44:29
+-------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,75 @@
+--------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.02-16.52.09.log.txt
+  log type:  text
+ opened on:   2 Nov 2022, 16:52:09
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  2 Nov 2022 16:52:09
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 17
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 23 Aug 2022
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.5.1
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 17
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * Figures
+. *   Figure 2: Employee Participation Rates in the iThrive Workplace Wellness Program
+. *   Figure 3: Pre-Intervention Medical Spending among Treatment Group, by Participation Status
+. *   Figures 5a-5c: Post-Intervention Medical Spending by Treatment Status
+. *do "$Persuasion/scripts/1_make_figures.do"
+. 
+. * Balance and selection tables
+. *   Tables 1a and 1b: Means of Study Variables at Baseline
+. *   Table 2: Selection on Medical Spending, Productivity, and Health Behaviors
+. *   Appendix Tables A.3a-3d: Selection on Strata, Health Care Utilization, Employment and Productivity, and Health and B
+> ehavior Variables
+. *do "$Persuasion/scripts/2_make_tables_1_2_A3.do"
+. 
+. * First-Year Effects
+. *   Table 4: First-Year Treatment Effects: Experimental versus Observational Estimates
+. *   Appendix Tables A.4a-g: First-Year Treatment Effects (ITT)
+. *   Appendix Tables A.5a-g: First-Year Treatment Effects: Experimental versus Observational Estimates
+. *do "$Persuasion/scripts/3_make_tables_4_A4_A5.do"
+. 
+. * Longer-Run Effects
+. *   Appendix Tables A.7a-g: Longer-Run Treatment Effects (ITT)
+. *do "$Persuasion/scripts/4_make_tables_A7.do"
+. 
+. * Summary of First-Year and Longer-Run ITT Effects
+. *   Table 3: Treatment Effects (Intention-to-Treat)
+. *do "$Persuasion/scripts/5_make_table_3.do"
+. 
+. * End log
+. *di "End date and time: $S_DATE $S_TIME"
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/logs/2022.11.02-16.52.09.log.txt
+  log type:  text
+ closed on:   2 Nov 2022, 16:52:09
+--------------------------------------------------------------------------------------------------------------------------

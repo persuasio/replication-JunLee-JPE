@@ -1,0 +1,504 @@
+----------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-09.52.01.log.txt
+  log type:  text
+ opened on:   7 Nov 2022, 09:52:01
+
+. 
+. di "Begin date and time: $S_DATE $S_TIME"
+Begin date and time:  7 Nov 2022 09:52:01
+
+. di "Stata version: `c(stata_version)'"
+Stata version: 16.1
+
+. di "Updated as of: `c(born_date)'"
+Updated as of: 30 Mar 2021
+
+. di "Variant:       `=cond( c(MP),"MP",cond(c(SE),"SE",c(flavor)) )'"
+Variant:       MP
+
+. di "Processors:    `c(processors)'"
+Processors:    4
+
+. di "OS:            `c(os)' `c(osdtl)'"
+OS:            MacOSX 12.4.0
+
+. di "Machine type:  `c(machine_type)'"
+Machine type:  Mac (Apple Silicon)
+
+. 
+. * Stata version control
+. version 16
+
+. 
+. * Create directories for output files
+. cap mkdir "$Persuasion/results"
+
+. 
+. **********************
+. * Run analysis
+. **********************
+. * TABLE 1. Persuasion Rates: Papers on Voter Turnout
+. *do "$Persuasion/scripts/table1.do"
+. 
+. * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
+. *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data
+> .do 
+. *   after downloading the original dataset from 
+. *   the AER webpage at https://www.aeaweb.org/articles?id=10.1257/aer.20171765
+. *   and storing them at "$Persuasion/data/ChenYang2019".
+. *   As the dataset is already created and stored at "$Persuasion/data/ChenYang20
+> 19", 
+. *   the do file is commented below.
+. *do "$Persuasion/scripts/CY19_data.do"
+. *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
+. *do "$Persuasion/scripts/table2.do"
+. 
+. * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
+. *   TABLE 3. Summary Statistics of the GKB Data
+. *do "$Persuasion/scripts/table3.do"
+. *   TABLE 4. Estimates of the Key Parameters
+. *do "$Persuasion/scripts/table4.do"
+. 
+. *       TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
+. do "$Persuasion/scripts/tableH1.do"
+
+. ************
+. * SCRIPT:   tableH1.do
+. * PURPOSE:  Creates Table H1
+. *
+. * ACKNOWLEDGMENT
+. *       The orginal dataset "NTV_Individual_Data.dta" is from Enikolopov, Petrov
+> a, and Zhuravskaya (AER, 2011).
+. ************
+. 
+. use "$Persuasion/data/EnikolopovPetrovaZhuravskaya2011/NTV_Individual_Data.dta",
+>  clear
+
+. 
+. local basic = "logpop98 wage98_ln"
+
+. local sociodem = "male age educ1 married consump"
+
+. 
+. local party_list = "Unity OVR"
+
+. 
+. *** create outcome variables based on directional treatment ***
+. 
+. gen y_vote_Unity = 0
+
+. replace y_vote_Unity = 1 if vote_Unity == 0   
+(993 real changes made)
+
+. 
+. gen y_vote_OVR = 0
+
+. replace y_vote_OVR = 1 if vote_OVR == 1   
+(166 real changes made)
+
+. 
+. *** create a binary instrument ***
+. 
+. svyset [pweight=kishweig]
+
+      pweight: kishweig
+          VCE: linearized
+  Single unit: missing
+     Strata 1: <one>
+         SU 1: <observations>
+        FPC 1: <zero>
+
+. 
+. _pctile tvmaxtveloss5050powerA [pweight=kishweig], p(50)         
+
+. scalar IV = r(r1)        
+
+. 
+.         gen IV_NTV = 0
+
+. replace IV_NTV = 1 if tvmaxtveloss5050powerA > IV
+(2,142 real changes made)
+
+. 
+. *** predict Z ***
+. 
+. probit  IV_NTV `sociodem' `basic' [pweight=kishweig]  
+
+Iteration 0:   log pseudolikelihood = -897.56596  
+Iteration 1:   log pseudolikelihood =  -377.4733  
+Iteration 2:   log pseudolikelihood = -375.96839  
+Iteration 3:   log pseudolikelihood = -375.96241  
+Iteration 4:   log pseudolikelihood = -375.96241  
+
+Probit regression                               Number of obs     =      1,300
+                                                Wald chi2(7)      =     434.31
+                                                Prob > chi2       =     0.0000
+Log pseudolikelihood = -375.96241               Pseudo R2         =     0.5811
+
+------------------------------------------------------------------------------
+             |               Robust
+      IV_NTV |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        male |   .0194095    .119127     0.16   0.871    -.2140752    .2528941
+         age |   .0015902   .0036186     0.44   0.660    -.0055021    .0086825
+       educ1 |   .0596368   .1473923     0.40   0.686    -.2292468    .3485203
+     married |  -.1636445   .1206162    -1.36   0.175     -.400048    .0727589
+     consump |   .0839782   .0441933     1.90   0.057     -.002639    .1705954
+    logpop98 |   .8995543   .0471699    19.07   0.000      .807103    .9920055
+   wage98_ln |    1.48292   .1493027     9.93   0.000     1.190292    1.775548
+       _cons |   -14.4872   1.115978   -12.98   0.000    -16.67448   -12.29992
+------------------------------------------------------------------------------
+
+. predict phat_Z1
+(option pr assumed; Pr(IV_NTV))
+(4,658 missing values generated)
+
+. 
+. *** predict T given Z=1 and Z=0 ***
+. 
+. probit  Watches_NTV_1999 `sociodem' `basic' [pweight=kishweig] if IV_NTV==1 
+
+Iteration 0:   log pseudolikelihood = -430.95756  
+Iteration 1:   log pseudolikelihood = -399.52944  
+Iteration 2:   log pseudolikelihood = -399.37528  
+Iteration 3:   log pseudolikelihood = -399.37528  
+
+Probit regression                               Number of obs     =        681
+                                                Wald chi2(7)      =      49.65
+                                                Prob > chi2       =     0.0000
+Log pseudolikelihood = -399.37528               Pseudo R2         =     0.0733
+
+---------------------------------------------------------------------------------
+                |               Robust
+Watches_NT~1999 |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+----------------+----------------------------------------------------------------
+           male |    .392838   .1217344     3.23   0.001      .154243     .631433
+            age |  -.0046047   .0038138    -1.21   0.227    -.0120797    .0028703
+          educ1 |   .1057311   .1634656     0.65   0.518    -.2146555    .4261178
+        married |   .0890637   .1172793     0.76   0.448    -.1407995     .318927
+        consump |   .1397055   .0430275     3.25   0.001     .0553732    .2240379
+       logpop98 |  -.2464854   .0561697    -4.39   0.000     -.356576   -.1363948
+      wage98_ln |   .0781313   .1783487     0.44   0.661    -.2714258    .4276883
+          _cons |    1.05253   1.336043     0.79   0.431    -1.566067    3.671126
+---------------------------------------------------------------------------------
+
+. predict phat_T_Z1
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. probit  Watches_NTV_1999 `sociodem' `basic' [pweight=kishweig] if IV_NTV==0 
+
+Iteration 0:   log pseudolikelihood = -358.69341  
+Iteration 1:   log pseudolikelihood = -342.20583  
+Iteration 2:   log pseudolikelihood = -342.15279  
+Iteration 3:   log pseudolikelihood = -342.15279  
+
+Probit regression                               Number of obs     =        504
+                                                Wald chi2(7)      =      26.41
+                                                Prob > chi2       =     0.0004
+Log pseudolikelihood = -342.15279               Pseudo R2         =     0.0461
+
+---------------------------------------------------------------------------------
+                |               Robust
+Watches_NT~1999 |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+----------------+----------------------------------------------------------------
+           male |   .0242779   .1328782     0.18   0.855    -.2361586    .2847145
+            age |  -.0079111    .004478    -1.77   0.077    -.0166878    .0008657
+          educ1 |   .3453431   .1753324     1.97   0.049      .001698    .6889882
+        married |  -.0037206   .1391432    -0.03   0.979    -.2764362    .2689951
+        consump |   .0029658    .056782     0.05   0.958    -.1083248    .1142564
+       logpop98 |  -.1551762   .0883316    -1.76   0.079    -.3283029    .0179505
+      wage98_ln |   .8134846   .2449759     3.32   0.001     .3333406    1.293629
+          _cons |  -4.638298   1.411324    -3.29   0.001    -7.404441   -1.872154
+---------------------------------------------------------------------------------
+
+. predict phat_T_Z0
+(option pr assumed; Pr(Watches_NTV_1999))
+(4,658 missing values generated)
+
+. 
+. *** input for ATE estimation ***
+. 
+. foreach party in  `party_list'    {
+  2. 
+. gen newvote_`party' = 0
+  3. replace newvote_`party' = 1 if y_vote_`party' == 1  
+  4. 
+. *** predict Y given Z=1 and Z=0 ***
+. 
+. probit newvote_`party' `sociodem' `basic' [pweight=kishweig] if IV_NTV==1 
+  5. predict phat_Y_Z1_`party'
+  6. 
+. probit newvote_`party' `sociodem' `basic' [pweight=kishweig] if IV_NTV==0 
+  7. predict phat_Y_Z0_`party'
+  8. 
+. *** compute ATE and relevant quantities ***
+. 
+. gen     ate_`party' = (phat_Y_Z1_`party' - phat_Y_Z0_`party')/(1-phat_Y_Z0_`part
+> y')
+  9. gen      w1_`party' = IV_NTV/phat_Z1
+ 10. gen      w0_`party' = (1-IV_NTV)/(1-phat_Z1)
+ 11. gen      t1_`party' = (newvote_`party'-phat_Y_Z1_`party')/(1-phat_Y_Z0_`party
+> ') 
+ 12. gen      t0_`party' = ((newvote_`party'-phat_Y_Z0_`party')*(ate_`party'-1))/(
+> 1-phat_Y_Z0_`party') 
+ 13. gen    infl_`party' = w1_`party'*t1_`party'+w0_`party'*t0_`party'
+ 14. }
+(993 real changes made)
+
+Iteration 0:   log pseudolikelihood = -513.01882  
+Iteration 1:   log pseudolikelihood = -500.49841  
+Iteration 2:   log pseudolikelihood = -500.48384  
+Iteration 3:   log pseudolikelihood = -500.48384  
+
+Probit regression                               Number of obs     =        745
+                                                Wald chi2(7)      =      21.80
+                                                Prob > chi2       =     0.0027
+Log pseudolikelihood = -500.48384               Pseudo R2         =     0.0244
+
+-------------------------------------------------------------------------------
+              |               Robust
+newvote_Unity |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+         male |  -.0223035    .108084    -0.21   0.837    -.2341442    .1895372
+          age |   .0112885   .0033299     3.39   0.001      .004762     .017815
+        educ1 |   .3016301   .1487993     2.03   0.043     .0099888    .5932715
+      married |   .0645181    .109431     0.59   0.555    -.1499626    .2789989
+      consump |   .0319884   .0382774     0.84   0.403    -.0430339    .1070108
+     logpop98 |  -.0999873   .0512721    -1.95   0.051    -.2004788    .0005042
+    wage98_ln |  -.3354355   .1623145    -2.07   0.039     -.653566    -.017305
+        _cons |   2.394453   1.228838     1.95   0.051    -.0140258    4.802932
+-------------------------------------------------------------------------------
+(option pr assumed; Pr(newvote_Unity))
+(4,658 missing values generated)
+
+Iteration 0:   log pseudolikelihood = -391.39941  
+Iteration 1:   log pseudolikelihood = -368.58416  
+Iteration 2:   log pseudolikelihood = -368.51444  
+Iteration 3:   log pseudolikelihood = -368.51443  
+
+Probit regression                               Number of obs     =        555
+                                                Wald chi2(7)      =      35.60
+                                                Prob > chi2       =     0.0000
+Log pseudolikelihood = -368.51443               Pseudo R2         =     0.0585
+
+-------------------------------------------------------------------------------
+              |               Robust
+newvote_Unity |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+         male |   .1349216   .1287543     1.05   0.295    -.1174321    .3872753
+          age |   .0222403   .0043408     5.12   0.000     .0137324    .0307481
+        educ1 |   .1474426   .1689911     0.87   0.383    -.1837739    .4786591
+      married |   .2032053   .1342995     1.51   0.130    -.0600169    .4664274
+      consump |   .0194389   .0524369     0.37   0.711    -.0833355    .1222134
+     logpop98 |  -.1162051   .0859249    -1.35   0.176    -.2846148    .0522046
+    wage98_ln |   .1225528   .2209045     0.55   0.579     -.310412    .5555177
+        _cons |  -1.200559   1.269112    -0.95   0.344    -3.687972    1.286854
+-------------------------------------------------------------------------------
+(option pr assumed; Pr(newvote_Unity))
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(166 real changes made)
+
+Iteration 0:   log pseudolikelihood = -200.31198  
+Iteration 1:   log pseudolikelihood = -189.40796  
+Iteration 2:   log pseudolikelihood = -189.06986  
+Iteration 3:   log pseudolikelihood = -189.06952  
+Iteration 4:   log pseudolikelihood = -189.06952  
+
+Probit regression                               Number of obs     =        745
+                                                Wald chi2(7)      =      20.37
+                                                Prob > chi2       =     0.0048
+Log pseudolikelihood = -189.06952               Pseudo R2         =     0.0561
+
+------------------------------------------------------------------------------
+             |               Robust
+ newvote_OVR |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        male |  -.4076629   .1678766    -2.43   0.015    -.7366949   -.0786308
+         age |   .0127162   .0052908     2.40   0.016     .0023464     .023086
+       educ1 |   .0395712   .2126347     0.19   0.852    -.3771851    .4563276
+     married |   .2397424   .1619435     1.48   0.139    -.0776611    .5571458
+     consump |  -.0237813   .0562508    -0.42   0.672    -.1340309    .0864683
+    logpop98 |  -.1739469   .0715563    -2.43   0.015    -.3141947    -.033699
+   wage98_ln |  -.1149989   .2007172    -0.57   0.567    -.5083975    .2783996
+       _cons |  -.0208163   1.464801    -0.01   0.989    -2.891773     2.85014
+------------------------------------------------------------------------------
+(option pr assumed; Pr(newvote_OVR))
+(4,658 missing values generated)
+
+Iteration 0:   log pseudolikelihood = -125.12774  
+Iteration 1:   log pseudolikelihood = -120.23641  
+Iteration 2:   log pseudolikelihood = -120.12826  
+Iteration 3:   log pseudolikelihood = -120.12803  
+Iteration 4:   log pseudolikelihood = -120.12803  
+
+Probit regression                               Number of obs     =        555
+                                                Wald chi2(7)      =       7.72
+                                                Prob > chi2       =     0.3580
+Log pseudolikelihood = -120.12803               Pseudo R2         =     0.0400
+
+------------------------------------------------------------------------------
+             |               Robust
+ newvote_OVR |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        male |  -.0825285   .2018898    -0.41   0.683    -.4782253    .3131683
+         age |   -.004178   .0084275    -0.50   0.620    -.0206956    .0123395
+       educ1 |   .2887292   .4096581     0.70   0.481    -.5141858    1.091644
+     married |   .0248535   .2265609     0.11   0.913    -.4191977    .4689046
+     consump |   .0723339   .0763893     0.95   0.344    -.0773864    .2220541
+    logpop98 |   .0071682   .1454772     0.05   0.961     -.277962    .2922983
+   wage98_ln |  -.5171696   .4553526    -1.14   0.256    -1.409644    .3753051
+       _cons |   1.486572   2.673278     0.56   0.578    -3.752957    6.726101
+------------------------------------------------------------------------------
+(option pr assumed; Pr(newvote_OVR))
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+(4,658 missing values generated)
+
+. 
+. *** average out with respect to covariates ***
+. 
+. svyset [pweight=kishweig]
+
+      pweight: kishweig
+          VCE: linearized
+  Single unit: missing
+     Strata 1: <one>
+         SU 1: <observations>
+        FPC 1: <zero>
+
+. 
+. foreach party in  `party_list'    {
+  2. 
+. matrix results_`party' = J(3,1,0)
+  3. 
+.     svy: mean ate_`party' 
+  4.     
+.         matrix result = e(b)    
+  5.     matrix results_`party'[1,1] = result[1,1]
+  6.         
+.         gen new_infl_`party' = infl_`party' + (ate_`party' - result[1,1])
+  7.                  
+.     svy: mean new_infl_`party'
+  8.         
+.         matrix result_se = e(V)
+  9.     matrix results_`party'[2,1] = sqrt(result_se[1,1])                       
+>     
+ 10.     matrix results_`party'[3,1] = results_`party'[1,1]-1.645*results_`party'[
+> 2,1]                                
+ 11. }
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+   ate_Unity |   .1667406   .0068477      .1533069    .1801743
+--------------------------------------------------------------
+(4,658 missing values generated)
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1          Number of obs   =      1,300
+Number of PSUs   =   1,300          Population size = 1,312.0491
+                                    Design df       =      1,299
+
+----------------------------------------------------------------
+               |             Linearized
+               |       Mean   Std. Err.     [95% Conf. Interval]
+---------------+------------------------------------------------
+new_infl_Unity |   -.150235   .1420967     -.4289992    .1285292
+----------------------------------------------------------------
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+     ate_OVR |   .0703301   .0023118      .0657948    .0748654
+--------------------------------------------------------------
+(4,658 missing values generated)
+(running mean on estimation sample)
+
+Survey: Mean estimation
+
+Number of strata =       1        Number of obs   =      1,300
+Number of PSUs   =   1,300        Population size = 1,312.0491
+                                  Design df       =      1,299
+
+--------------------------------------------------------------
+             |             Linearized
+             |       Mean   Std. Err.     [95% Conf. Interval]
+-------------+------------------------------------------------
+new_infl_OVR |   .0047302   .0500694     -.0934955    .1029558
+--------------------------------------------------------------
+
+. 
+. 
+. 
+. ************* prin results *************
+. 
+. 
+. foreach party in  `party_list'    {
+  2. 
+. *** r1: point estimate; r2: standard error; r3: the lower-end point of one-sided
+>  95% confidence interval
+. 
+. 
+. matrix list results_`party', format(%9.3f)
+  3. 
+. }
+
+results_Unity[3,1]
+        c1
+r1   0.167
+r2   0.142
+r3  -0.067
+
+results_OVR[3,1]
+        c1
+r1   0.070
+r2   0.050
+r3  -0.012
+
+. 
+end of do-file
+
+. 
+. * End log
+. di "End date and time: $S_DATE $S_TIME"
+End date and time:  7 Nov 2022 09:52:01
+
+. log close
+      name:  <unnamed>
+       log:  /Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files/scripts/log
+> s/2022.11.07-09.52.01.log.txt
+  log type:  text
+ closed on:   7 Nov 2022, 09:52:01
+----------------------------------------------------------------------------------
