@@ -26,12 +26,12 @@
 **********************
 
 * "Persuasion" points to the root directory, which contains the subfolders "data" and "scripts"
-global Persuasion "/Users/sokbaelee/Dropbox/Persuasion/JPE/Replication Files"
+global Persuasion "TO BE ADDED"
 
 * Number of bootstraps for Table 2
 * The published paper used nbt = 10000. Runtime is approximately 3 hours on an iMac (M1, 2021).
 * Use nbt = 10 to check whether replication code runs without an error. 
-global nbt = 10000
+global nbt = 10
 
 * set seed for replicability 
 set seed 987975	
@@ -59,6 +59,10 @@ di "Processors:    `c(processors)'"
 di "OS:            `c(os)' `c(osdtl)'"
 di "Machine type:  `c(machine_type)'"
 
+* All required Stata packages are available in the /libraries folder
+adopath ++ "$Persuasion/scripts/libraries"
+mata: mata mlib index
+
 * Stata version control
 version 16
 
@@ -69,7 +73,7 @@ cap mkdir "$Persuasion/results"
 * Run analysis
 **********************
 * TABLE 1. Persuasion Rates: Papers on Voter Turnout
-*do "$Persuasion/scripts/table1.do"
+do "$Persuasion/scripts/table1.do"
 
 * Effects of Uncensored Media: Revisiting Chen and Yang (2019)
 *   To generate the dataset "ChenYang2019.dta", it is necessary to run CY19_data.do 
@@ -80,30 +84,27 @@ cap mkdir "$Persuasion/results"
 *   the do file is commented below.
 *do "$Persuasion/scripts/CY19_data.do"
 *   TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
-*do "$Persuasion/scripts/table2.do"
+do "$Persuasion/scripts/table2.do"
 
 * Effects of Political News: Revisting Gerber, Karlan, and Bergan (2009) 
 *   TABLE 3. Summary Statistics of the GKB Data
-*do "$Persuasion/scripts/table3.do"
+do "$Persuasion/scripts/table3.do"
 *   TABLE 4. Estimates of the Key Parameters
-*do "$Persuasion/scripts/table4.do"
+do "$Persuasion/scripts/table4.do"
 
 *	TABLE D1. Persuasion Rates: Fox News Effects
-*do "$Persuasion/scripts/tableD1.do"
+do "$Persuasion/scripts/tableD1.do"
 
 *	FIGURE D1. Estimates of Marginal and Average Persuasion Rates
-*do "$Persuasion/scripts/tableD2.do"
+do "$Persuasion/scripts/tableD2.do"
 
 *	TABLE E1. Persuasive Effect by Treatment in Landry et al. (2006)
-*do "$Persuasion/scripts/tableE1.do"
+do "$Persuasion/scripts/tableE1.do"
 *	TABLE E2. Persuasive Effect by Treatment in DLM
-*do "$Persuasion/scripts/tableE2.do"
+do "$Persuasion/scripts/tableE2.do"
 
 *	TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
 do "$Persuasion/scripts/tableH1.do"
-
-
-
 
 * End log
 di "End date and time: $S_DATE $S_TIME"

@@ -23,14 +23,14 @@ keep if data_avail==1         /* keep observations in the estimation sample */
 *** two way tables by treatment ***
 tab voteddem_all readsome if post == 1, matcell(treat)
 
-frmttable using "$Persuasion/results/table3", statmat(treat) tex replace sdec(0) ///
+frmttable using "$Persuasion/results/table3a", statmat(treat) tex replace sdec(0) ///
 	title("Table 3: The Washington Post (Z = 1)") ///
 	ctitles("", "T=0", "T=1" )  ///
 	rtitles("Y=0" \ "Y=1" )
 
 tab voteddem_all readsome if post == 0, matcell(control)
 
-frmttable using "$Persuasion/results/table3", statmat(control) tex replace sdec(0) ///
+frmttable using "$Persuasion/results/table3b", statmat(control) tex replace sdec(0) ///
 	title("Table 3: Control (Z = 0)") ///
 	ctitles("", "T=0", "T=1" )  ///
 	rtitles("Y=0" \ "Y=1" )	
