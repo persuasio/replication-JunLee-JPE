@@ -51,9 +51,10 @@ foreach party in `party_list' {
 			c.phat#i.male c.phat#c.age c.phat#i.educ1 c.phat#i.married c.phat#c.consump ///
 			[pweight=kishweig]
 	
-	margins [pweight=kishweig], dydx(phat) at(phat = (0.4(0.1)0.6))
+	margins [pweight=kishweig], dydx(phat) at(phat = (0.4(0.01)0.6))
 	matrix num = r(b)
-
+	mata: st_matrix("avg_num", rowsum(st_matrix("num")))
+	
 	* linear probability model of Y*(1-T) given X and e(X,Z)
 	* specification: linear in X and cubic in e(X,Z), while interacting some of X and e(X,Z)
 	reg notwatch_vote_`party' `sociodem' `basic' ///
@@ -61,19 +62,27 @@ foreach party in `party_list' {
 			c.phat#i.male c.phat#c.age c.phat#i.educ1 c.phat#i.married c.phat#c.consump ///
 			[pweight=kishweig]
 	
-	margins [pweight=kishweig], dydx(phat) at(phat = (0.4(0.1)0.6))
-	matrix den = J(1,3,1) + r(b)
+	margins [pweight=kishweig], dydx(phat) at(phat = (0.4(0.01)0.6))
+	matrix den = J(1,21,1) + r(b)
+	mata: st_matrix("avg_den", rowsum(st_matrix("den")))
 	
 	mata: st_matrix("mte", st_matrix("num") :/ st_matrix("den"))
 	matrix list mte
 
 	matrix results_`party' = mte'
-	
+	mata: st_matrix("avg_`party'", st_matrix("avg_num") :/ st_matrix("avg_den"))
 }
 
 matrix results = (results_Unity, results_OVR)
+matrix results_avg = (avg_Unity, avg_OVR)
+matrix results = (results_avg \ results)
+
+putexcel set "$Persuasion/results/tableD2.xlsx", replace
+putexcel A1=matrix(results)
 
 frmttable using "$Persuasion/results/tableD2", statmat(results) tex replace sdec(3) ///
 	ctitles("", "Not Vote for Unity", "Vote for OVR" )  ///
-	rtitles("v = 0.4" \ "v = 0.5" \ "v = 0.6") ///
-	title("Estimates of Marginal Persuasion Rates")
+	rtitles("Avg between 0.4 and 0.6" \ "v = 0.40" \ "v = 0.41" \ "v = 0.42" \ ... )  ///
+	title("Estimates of Marginal and Average Persuasion Rates")
+	
+	
