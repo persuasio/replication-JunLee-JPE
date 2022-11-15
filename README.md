@@ -11,7 +11,7 @@ Sung Jae Jun and Sokbae Lee. 2022. Identifying the Effect of Persuasion. https:/
 The following diagram summarizes the organization of the replication files.
 
 ```
-replications-JunLee-JPE 		# Replication files for Jun and Lee (2022)
+replications-JunLee-JPE         # 	Replication files for Jun and Lee (2022)
     ├── data                    # 	Datasets
     |   ├── ChenYang2019                        #	Dataset from Chen and Yang (2019)
     |   ├── DellaVignaKaplan2007                #	Dataset from DellaVigna and Kaplan (2007)
