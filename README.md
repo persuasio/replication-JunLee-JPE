@@ -31,7 +31,7 @@ replications-JunLee-JPE         # Replication files for Jun and Lee (2022)
     |   ├── tableE1.do          #       	Make Table E1
     |   ├── tableE2.do          #       	Make Table E2
     |   ├── tableH1.do          #       	Make Table H1
-    |   ├── CY19_data.do        # 			Prepare input for Table 2
+    |   ├── CY19_data.do        #			Prepare input for Table 2
     ├── results                 #	Replication Figure D1 and all the tables
     └── run.do                  #	Master script that calls the replication scripts (except FigureD1.R)
 ```
