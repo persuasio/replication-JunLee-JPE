@@ -11,14 +11,14 @@ Sung Jae Jun and Sokbae Lee. 2022. Identifying the Effect of Persuasion. https:/
 The following diagram summarizes the organization of the replication files.
 
 ```
-replications-JunLee-JPE         #	Replication files for Jun and Lee (2022)
-    ├── data                    #   	Datasets
+replications-JunLee-JPE 		# Replication files for Jun and Lee (2022)
+    ├── data                    # 	Datasets
     |   ├── ChenYang2019                        #	Dataset from Chen and Yang (2019)
     |   ├── DellaVignaKaplan2007                #	Dataset from DellaVigna and Kaplan (2007)
     |   ├── DellaVignaListMalmendier2012        #	Dataset from DellaVigna, List, and Malmendier (2012)
     |   ├── EnikolopovPetrovaZhuravskaya2011	#	Dataset from Enikolopov, Petrova, and Zhuravskaya (2011)
     |   ├── GerberKarlanBergan2009              #	Dataset from Gerber, Karlan, and Bergan (2009)
-    ├── scripts                 #		Replication scripts
+    ├── scripts                 # 	Replication scripts
     |   ├── libraries           #       	Add-on Stata packages
     |   ├── logs                #       	Stata log files are saved here
     |   ├── table1.do           #       	Make Table 1
