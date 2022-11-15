@@ -3,14 +3,10 @@
 *   This script generates selected tables for the paper:
 *       "IDENTIFYING THE EFFECT OF PERSUASION" (Sung Jae Jun and Sokbae Lee)
 *   All data are stored in /data
-*   All tables are outputted to /results
+*   All results are outputted to /results
 * 
 * SOFTWARE REQUIREMENTS
-*   Stata version 17 or newer
-*
-* PACKAGE REQUIREMENTS
-*   persuasio (can be installed by ssc install persuasio, replace)
-*   outreg (can be installed by ssc install outreg, replace)
+*   Stata version 16 or newer
 *
 * TO PERFORM A CLEAN RUN, DELETE THE FOLLOWING FOLDER:
 *   $Persuasion/results
@@ -29,7 +25,7 @@
 global Persuasion "TO BE ADDED"
 
 * Number of bootstraps for Table 2
-* The published paper used nbt = 10000. Runtime is approximately 3 hours on an iMac (M1, 2021).
+* The paper used nbt = 10000. Runtime is approximately 3 hours on an iMac (M1, 2021).
 * Use nbt = 10 to check whether replication code runs without an error. 
 global nbt = 10
 
@@ -96,7 +92,9 @@ do "$Persuasion/scripts/table4.do"
 do "$Persuasion/scripts/tableD1.do"
 
 *	FIGURE D1. Estimates of Marginal and Average Persuasion Rates
-do "$Persuasion/scripts/tableD2.do"
+* 	The following do file generates an excel file that will be used to 
+* 	create Figure D1 by separate R code.
+do "$Persuasion/scripts/figureD1input.do"
 
 *	TABLE E1. Persuasive Effect by Treatment in Landry et al. (2006)
 do "$Persuasion/scripts/tableE1.do"

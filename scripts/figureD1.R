@@ -4,9 +4,10 @@
 
  rm(list=ls())
 
- setwd("~/Dropbox/Persuasion/JPE/Replication Files")
+## The working directory needs to be set up below ##
+ setwd("TO BE ADDED")
 
- data <- readxl::read_excel("results/tableD2.xlsx",
+ data <- readxl::read_excel("results/figureD1input.xlsx",
                             col_names = FALSE)
  
   data <- as.data.frame(data)
@@ -20,7 +21,7 @@
   apr_unity <- rep(apr_unity,length(p))
   apr_OVR <- rep(apr_OVR,length(p))    
   
-pdf("results/figureD2.pdf")
+pdf("results/figureD1.pdf")
 par(mfrow=c(1,2))   
 
 plot(p, unity, type = "l", lty = "solid", col = "blue", 
