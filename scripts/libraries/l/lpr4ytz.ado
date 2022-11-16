@@ -237,12 +237,13 @@ program lpr4ytz, eclass sortpreserve byable(recall)
 	
 	matrix `b' = r(b)
 	matrix `V' = r(V)	
-	scalar `lpr' = r(table)[1,1]
-	scalar `se' = r(table)[2,1]
 	
 	ereturn post `b' `V', obs(`nobs') esample(`touse')
-	ereturn display, nopv	
+	ereturn display, nopv
 	
+	scalar `lpr' = _b[local_persuasion_rate]
+	scalar `se' = _se[local_persuasion_rate]		
+		
 	display " "
 	display "Note: It is recommended to use {bf:persuasio} for causal inference."
     display " "

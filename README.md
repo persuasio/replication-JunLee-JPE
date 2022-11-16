@@ -19,7 +19,7 @@ replications-JunLee-JPE         # Replication files for Jun and Lee (2022)
     |   ├── EnikolopovPetrovaZhuravskaya2011	#	Dataset from Enikolopov, Petrova, and Zhuravskaya (2011)
     |   ├── GerberKarlanBergan2009              #	Dataset from Gerber, Karlan, and Bergan (2009)
     ├── scripts                 # 	Replication scripts
-    |   ├── libraries           #       	Add-on Stata packages (persuasio included)
+    |   ├── libraries           #       	Stata module `persuasio`
     |   ├── logs                #       	Stata log files are saved here
     |   ├── table1.do           #       	Make Table 1
     |   ├── table2.do           #       	Make Table 2
@@ -43,7 +43,7 @@ First, [download this repository](https://github.com/persuasio/replication-JunLe
 - `scripts/libraries` contains user-built Stata commands used in the analysis.
 - To generate the dataset `ChenYang2019.dta`, it is necessary to run `CY19_data.do` after downloading the original dataset from Chen and Yang (2019) at https://www.aeaweb.org/articles?id=10.1257/aer.20171765 and storing them at `data/ChenYang2019`. This dataset is already created and stored at `data/ChenYang2019`. 
 
-Before running `run.do`, the user must define the global macro `Persuasion` at the top of that script.
+Before running `run.do`, the user must define the global macro `Persuasion` at the top of that script. Also, it is necessary to install the Stata module `outreg` by `ssc install outreg, replace` before running the do file.
 
 ## Software, memory, and runtime requirements
 

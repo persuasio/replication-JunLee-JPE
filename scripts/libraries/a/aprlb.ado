@@ -207,11 +207,12 @@ program aprlb, eclass sortpreserve byable(recall)
 	
 	matrix `b' = r(b)
 	matrix `V' = r(V)	
-	scalar `lb' = r(table)[1,1]
-	scalar `se' = r(table)[2,1]
 	
 	ereturn post `b' `V', obs(`nobs') esample(`touse')
 	ereturn display, nopv	
+	
+	scalar `lb' = _b[lower_bound]
+	scalar `se' = _se[lower_bound]
 	
 	display " "
 	display "Note: It is recommended to use {bf:persuasio} for causal inference."
