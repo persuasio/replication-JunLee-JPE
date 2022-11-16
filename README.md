@@ -19,7 +19,7 @@ replications-JunLee-JPE         # Replication files for Jun and Lee (2022)
     |   ├── EnikolopovPetrovaZhuravskaya2011	#	Dataset from Enikolopov, Petrova, and Zhuravskaya (2011)
     |   ├── GerberKarlanBergan2009              #	Dataset from Gerber, Karlan, and Bergan (2009)
     ├── scripts                 # 	Replication scripts
-    |   ├── libraries           #       	Stata module `persuasio`
+    |   ├── libraries           #       	Stata module "persuasio"
     |   ├── logs                #       	Stata log files are saved here
     |   ├── table1.do           #       	Make Table 1
     |   ├── table2.do           #       	Make Table 2
