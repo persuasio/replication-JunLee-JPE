@@ -112,11 +112,12 @@ matrix results_`fixed_effect'[2,1] = ub_avg_num/ub_avg_den
 *** compute the lower bound for theta_local
 
 gen late_weight = (ehat1-ehat0)
-sum late_weight if auddiaryScar > 0 [aweight=auddiaryScar]
-scalar late_den = r(mean)
-scalar late = avg_num/late_den
+gen theta_local_den = min(thetahat_den, late_weight)
+sum theta_local_den if auddiaryScar > 0 [aweight=auddiaryScar]
+scalar local_den = r(mean)
+scalar theta_local = avg_num/local_den
 
-matrix results_`fixed_effect'[3,1] = max(late, avg_lb)
+matrix results_`fixed_effect'[3,1] = theta_local
 matrix results_`fixed_effect'[4,1] = 1
 
 drop yhat* theta* ehat* ub_* late*

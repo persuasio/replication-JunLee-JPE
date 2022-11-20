@@ -162,13 +162,13 @@ Identifying the Effect of Persuasion,
 Version
 -------
 
-0.2.0 13 November 2022
+0.2.1 20 November 2022
 
 ***/
 capture program drop lpr4ytz
 program lpr4ytz, eclass sortpreserve byable(recall)
 
-	version 14.2
+	version 16.1
 	
 	syntax varlist (min=3) [if] [in] [, model(string) title(string)]
 	
@@ -241,8 +241,8 @@ program lpr4ytz, eclass sortpreserve byable(recall)
 	ereturn post `b' `V', obs(`nobs') esample(`touse')
 	ereturn display, nopv
 	
-	scalar `lpr' = _b[local_persuasion_rate]
-	scalar `se' = _se[local_persuasion_rate]		
+	scalar `lpr' = r(table)[1,1]
+	scalar `se' = r(table)[2,1]		
 		
 	display " "
 	display "Note: It is recommended to use {bf:persuasio} for causal inference."

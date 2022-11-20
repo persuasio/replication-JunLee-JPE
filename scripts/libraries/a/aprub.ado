@@ -163,13 +163,13 @@ Identifying the Effect of Persuasion,
 Version
 -------
 
-0.2.0 13 November 2022
+0.2.1 20 November 2022
 
 ***/
 capture program drop aprub
 program aprub, eclass sortpreserve byable(recall)
 
-	version 14.2
+	version 16.1
 	
 	syntax varlist (min=3) [if] [in] [, model(string) title(string)]
 	
@@ -243,8 +243,8 @@ program aprub, eclass sortpreserve byable(recall)
 	ereturn post `b' `V', obs(`nobs') esample(`touse')
 	ereturn display, nopv	
 
-	scalar `ub' = _b[upper_bound]
-	scalar `se' = _se[upper_bound]	
+	scalar `ub' = r(table)[1,1]
+	scalar `se' = r(table)[2,1]
 	
 	display " "
 	display "Note: It is recommended to use {bf:persuasio} for causal inference."
