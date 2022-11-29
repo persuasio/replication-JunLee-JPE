@@ -4,7 +4,7 @@
 
 This folder contains files to replicate results from the following paper:
 
-Sung Jae Jun and Sokbae Lee. 2022. Identifying the Effect of Persuasion. https://arxiv.org/abs/1812.02276. Accepted for publication in the _Journal of Political Economy_. 
+Sung Jae Jun and Sokbae Lee. 2022. Identifying the Effect of Persuasion. <https://arxiv.org/abs/1812.02276>. Accepted for publication in the _Journal of Political Economy_. 
 
 ## Replication folder structure 
 
@@ -53,4 +53,4 @@ Memory requirements are minimal. Runtime is approximately 3 hours on an iMac (M1
 
 ## Acknowledgment
 
-The structure of the replication files is forked from Illinois Workplace Wellness Study: Public Use Data Repository at https://github.com/reifjulian/illinois-wellness-data.
+The structure of the replication files is forked from Illinois Workplace Wellness Study: Public Use Data Repository at <https://github.com/reifjulian/illinois-wellness-data>.
