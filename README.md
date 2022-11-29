@@ -4,7 +4,7 @@
 
 This folder contains files to replicate results from the following paper:
 
-Sung Jae Jun and Sokbae Lee. 2022. Identifying the Effect of Persuasion. https://arxiv.org/abs/1812.02276.
+Sung Jae Jun and Sokbae Lee. 2022. Identifying the Effect of Persuasion. https://arxiv.org/abs/1812.02276. Accepted for publication in the _Journal of Political Economy_. 
 
 ## Replication folder structure 
 
