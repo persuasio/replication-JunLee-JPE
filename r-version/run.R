@@ -1,89 +1,138 @@
-# run.R
 # **********************
-# OVERVIEW
-#   This script generates selected tables for the paper:
-#       "IDENTIFYING THE EFFECT OF PERSUASION" (Sung Jae Jun and Sokbae Lee)
-#   All data are stored in /data
-#   All results are outputted to /results
-#
-# SOFTWARE REQUIREMENTS
-#   R version 4.0 or newer
-#   R package: persuasio (and dependencies)
-#
-# TO PERFORM A CLEAN RUN, DELETE THE FOLLOWING FOLDER:
-#   results/
+# * SCRIPT:   run.R
+# * PURPOSE:  Runs selected replication scripts for
+# *           "IDENTIFYING THE EFFECT OF PERSUASION"
+# *           (Sung Jae Jun and Sokbae Lee)
 # **********************
 
-# **********************
-# Parameters defined by user
-# **********************
-# Number of bootstraps for Table 2
-# The paper used nbt = 10000.
-# Use nbt = 10 to check whether replication code runs without an error.
-nbt  <- 10
-seed <- 987975
+# Stata analogue:
+#   global Persuasion ".../replication-JunLee-JPE-main"
+#   global nbt = 10
+#   set seed 987975
+#   cap mkdir "$Persuasion/scripts/logs"
+#   cap mkdir "$Persuasion/results"
 
-# **********************
-# Setup
-# **********************
-library(here)        # portable paths
-library(haven)       # read .dta
-library(persuasio)   # your R package
+# -----------------------------------------------------------------------------
+# User parameters
+# -----------------------------------------------------------------------------
 
-set.seed(seed)
+# Root directory containing /data, /scripts, and /results.
+# Significant change from Stata: R uses a normal object instead of a global macro.
+# If this script is run from the repository root, getwd() should be correct.
+Persuasion <- getwd()
 
-# Record session info (mirrors Stata's system parameter log)
-cat("Begin:", format(Sys.time()), "\n")
-cat("R version:", R.version$version.string, "\n")
-cat("Platform:", R.version$platform, "\n")
-sink(here("scripts/logs", paste0(format(Sys.time(), "%Y.%m.%d-%H.%M.%S"), ".log.txt")),
-     split = TRUE)
+# Number of bootstraps for Table 2.
+# The Stata trace uses nbt = 10 for a quick run; the paper used 10000.
+nbt <- 10
 
-# Create output directories if they don't exist
-dir.create(here("results/tables"),  recursive = TRUE, showWarnings = FALSE)
-dir.create(here("results/figures"), recursive = TRUE, showWarnings = FALSE)
-dir.create(here("scripts/logs"),    recursive = TRUE, showWarnings = FALSE)
+# Seed for replicability.
+set.seed(987975)
 
-# Load all datasets once, pass as needed
-source(here("R/utils/load_data.R"))
-data <- load_data()
+# -----------------------------------------------------------------------------
+# Directory setup
+# -----------------------------------------------------------------------------
 
-# **********************
-# Run analysis
-# **********************
+if (missing(Persuasion) || is.na(Persuasion) || Persuasion == "") {
+  stop("Persuasion root directory is not defined.")
+}
 
-# TABLE 1. Persuasion Rates: Papers on Voter Turnout
-source(here("R/tables/table1.R"))
+scripts_dir <- file.path(Persuasion, "scripts")
+results_dir <- file.path(Persuasion, "results")
+logs_dir <- file.path(scripts_dir, "logs")
 
-# CY19_data.R already run; ChenYang2019.dta is pre-built (mirrors commented-out do file)
-# source(here("R/data_prep/CY19_data.R"))
+dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(logs_dir, recursive = TRUE, showWarnings = FALSE)
 
-# TABLE 2. Persuasion Rates of Exposure to Uncensored Internet
-source(here("R/tables/table2.R"))   # uses nbt and seed defined above
+# Some translated scripts write to outreg_dir because that naming convention was
+# used in prior CY19 translations. Alias it to results_dir for consistency.
+outreg_dir <- results_dir
 
-# TABLE 3. Summary Statistics of the GKB Data
-source(here("R/tables/table3.R"))
+# -----------------------------------------------------------------------------
+# Package setup
+# -----------------------------------------------------------------------------
 
-# TABLE 4. Estimates of the Key Parameters
-source(here("R/tables/table4.R"))
+required_packages <- c(
+  "haven",
+  "dplyr",
+  "tibble",
+  "tidyr",
+  "purrr",
+  "stringr",
+  "ggplot2",
+  "broom",
+  "sandwich",
+  "lmtest",
+  "fixest",
+  "tinytable",
+  "persuasio"
+)
 
-# TABLE D1. Persuasion Rates: Fox News Effects
-source(here("R/tables/tableD1.R"))
+missing_packages <- required_packages[
+  !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
 
-# FIGURE D1. Estimates of Marginal and Average Persuasion Rates
-#   figureD1input.R generates the input object; FigureD1.R renders the plot
-source(here("R/figures/figureD1input.R"))
-source(here("R/figures/FigureD1.R"))
+if (length(missing_packages) > 0) {
+  stop(
+    "Install missing packages before running replication scripts: ",
+    paste(missing_packages, collapse = ", ")
+  )
+}
 
-# TABLE E1. Persuasive Effect by Treatment in Landry et al. (2006)
-source(here("R/tables/tableE1.R"))
+invisible(lapply(required_packages, library, character.only = TRUE))
 
-# TABLE E2. Persuasive Effect by Treatment in DLM
-source(here("R/tables/tableE2.R"))
+# -----------------------------------------------------------------------------
+# Source helper
+# -----------------------------------------------------------------------------
 
-# TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument
-source(here("R/tables/tableH1.R"))
+run_script <- function(script_name) {
 
-# **********************
-cat("End:", format(Sys.time()), "\n")
-sink()
+  script_path <- file.path(scripts_dir, script_name)
+
+  if (!file.exists(script_path)) {
+    warning("Skipping missing script: ", script_path)
+    return(invisible(FALSE))
+  }
+
+  message("Running ", script_name, " ...")
+
+  # Significant change from Stata: source() evaluates in the current R session,
+  # roughly like Stata do-files sharing globals/macros. local = FALSE preserves
+  # objects such as Persuasion, nbt, results_dir, and outreg_dir.
+  source(script_path, local = FALSE)
+
+  message("Finished ", script_name)
+  invisible(TRUE)
+}
+
+# -----------------------------------------------------------------------------
+# Script execution order
+# -----------------------------------------------------------------------------
+
+# This order follows the run.do workflow implied by the trace log and the
+# translated files created from the individual trace logs. If the original
+# run.do includes extra scripts not yet translated, add them here.
+replication_scripts <- c(
+  "table1.R",
+  "table2.R",
+  "table3.R",
+  "table4.R",
+  "tableD1.R",
+  "tableD2.R",
+  "figureD1input.R",
+  "tableE1.R",
+  "tableE2.R",
+  "tableH1.R"
+)
+
+run_status <- tibble::tibble(
+  script = replication_scripts,
+  ran = purrr::map_lgl(replication_scripts, run_script)
+)
+
+write.csv(
+  run_status,
+  file.path(logs_dir, "run_status.csv"),
+  row.names = FALSE
+)
+
+message("Replication run complete. Results directory: ", results_dir)
