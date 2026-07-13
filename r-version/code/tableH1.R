@@ -237,54 +237,81 @@ estimate_party <- function(data, party) {
 unity_results <- estimate_party(ntv, "Unity")
 ovr_results <- estimate_party(ntv, "OVR")
 
-# Raw numeric matrix following Stata's style
-tableH1_matrix <- tibble(
-  Statistic = c(
-    "Point estimate of the lower bound",
-    "Standard error of the lower bound",
-    "One-sided 95% confidence interval"
-  ),
-  `Not Voting for Unity` = unname(unity_results),
-  `Voting for Unity` = unname(ovr_results)
+# Row labels used in both raw and display tables
+row_labels <- c(
+  "Point estimate of the lower bound",
+  "Standard error of the lower bound",
+  "One-sided 95% confidence interval for θ_avg"
 )
 
-tableH1_data <- tibble(
-  Statistic = c(
-    "Point estimate of the lower bound",
-    "Standard error of the lower bound",
-    "One-sided 95% confidence interval for $\\theta_{avg}$"
-  ),
+# Raw numeric results
+tableH1_raw <- tibble(
+  Statistic = row_labels,
   `Not voting for Unity` = c(
-    sprintf("%.3f", unity_results["point_estimate"]),
-    sprintf("%.3f", unity_results["standard_error"]),
-    sprintf("[%.3f,1]", unity_results["confidence_lower"])
+    unity_results["point_estimate"],
+    unity_results["standard_error"],
+    unity_results["confidence_lower"]
   ),
   `Voting for OVR` = c(
-    sprintf("%.3f", ovr_results["point_estimate"]),
-    sprintf("%.3f", ovr_results["standard_error"]),
-    sprintf("[%.3f,1]", ovr_results["confidence_lower"])
+    ovr_results["point_estimate"],
+    ovr_results["standard_error"],
+    ovr_results["confidence_lower"]
   )
 )
 
-# Save results
+# Formatted results for display
+tableH1_display <- tableH1_raw %>%
+  mutate(
+    `Not voting for Unity` = c(
+      sprintf("%.3f", .data$`Not voting for Unity`[1]),
+      sprintf("%.3f", .data$`Not voting for Unity`[2]),
+      sprintf("[%.3f,1]", .data$`Not voting for Unity`[3])
+    ),
+    `Voting for OVR` = c(
+      sprintf("%.3f", .data$`Voting for OVR`[1]),
+      sprintf("%.3f", .data$`Voting for OVR`[2]),
+      sprintf("[%.3f,1]", .data$`Voting for OVR`[3])
+    )
+  )
+
+# Save raw and formatted CSV files
 write.csv(
-  tableH1_matrix,
+  tableH1_raw,
   file = file.path(output_dir, "tableH1_raw.csv"),
   row.names = FALSE,
   na = ""
 )
 
 write.csv(
-  tableH1_data,
+  tableH1_display,
   file = file.path(output_dir, "tableH1_display.csv"),
   row.names = FALSE,
   na = ""
 )
 
+# Use LaTeX math only in the LaTeX version
+tableH1_latex <- tableH1_display
+tableH1_latex$Statistic[3] <-
+  "One-sided 95\\% confidence interval for $\\theta_{\\mathrm{avg}}$"
+
 tableH1_tex <- tt(
-  tableH1_data,
-  caption = "Table H1"
-)
+  tableH1_latex,
+  caption = "TABLE H1. Persuasion Rates: NTV Effects Using a Binary Instrument"
+) |>
+  style_tt(
+    j = 1,
+    align = "l"
+  ) |>
+  style_tt(
+    j = 2:3,
+    align = "c"
+  ) |>
+  group_tt(
+    j = list(
+      "(1)" = 2,
+      "(2)" = 3
+    )
+  )
 
 print(tableH1_tex)
 

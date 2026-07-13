@@ -1,4 +1,4 @@
 "Statistic","Not voting for Unity","Voting for OVR"
 "Point estimate of the lower bound","0.203","0.056"
 "Standard error of the lower bound","0.072","0.024"
-"One-sided 95% confidence interval for $\theta_{avg}$","[0.084,1]","[0.017,1]"
+"One-sided 95% confidence interval for θ_avg","[0.084,1]","[0.017,1]"
