@@ -7,6 +7,12 @@ library(tibble)
 library(persuasio)
 library(tinytable)
 
+output_dir <- here::here("output")
+
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
 # Input for Table 1
 turnout <- matrix(
   c(
@@ -74,7 +80,4 @@ table1 <- tt(
 )
 print(table1)
 
-save_tt(
-  table1,
-  file = "results/table1.tex"
-)
+save_tt(table1, file = file.path(output_dir, "table1.tex"))
