@@ -1,58 +1,62 @@
 # ************
-# * SCRIPT:   tableD2.do
+# * SCRIPT:   tableD2.R
 # * PURPOSE:  Creates Table D2
 # *
 # * ACKNOWLEDGMENT
-# *       The orginal dataset "NTV_Individual_Data.dta" is from Enikolopov, Petrova, and Zhuravskaya (AER, 2011).
+# *       The original dataset "NTV_Individual_Data.dta" is from
+# *       Enikolopov, Petrova, and Zhuravskaya (AER, 2011).
 # ************
 
 library(haven)
 library(dplyr)
 library(tibble)
+library(tidyr)
 library(tinytable)
+library(writexl)
+library(here)
 
-persuasion_dir <- Sys.getenv("PERSUASION_DIR")
-if (persuasion_dir == "") {
-  persuasion_dir <- "."
+output_dir <- here::here("output")
+data_path <- here::here(
+  "data",
+  "EnikolopovPetrovaZhuravskaya2011",
+  "NTV_Individual_Data.dta"
+)
+
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+if (!file.exists(data_path)) {
+  stop(
+    "Data file not found: ",
+    data_path,
+    call. = FALSE
+  )
 }
-
-results_dir <- file.path(persuasion_dir, "results")
-dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
 
 clip01 <- function(x) {
   pmin(pmax(x, 0), 1)
 }
 
-# ************
-# * SCRIPT:   tableD2.R
-# * PURPOSE:  Creates Table D2
-# ************
+weighted_mean_safe <- function(x, w) {
+  keep <- !is.na(x) & !is.na(w) & w > 0
 
-library(writexl)
+  if (!any(keep)) {
+    stop("No observations with nonmissing values and positive weights.", call. = FALSE)
+  }
 
-# Original Stata source: trace_tableD2.txt.
-# This is the same marginal persuasion-rate workflow as figureD1input.R, with
-# the final matrix exported as Table D2.
+  weighted.mean(x[keep], w[keep])
+}
 
-ntv <- read_dta(
-  file.path(
-    persuasion_dir,
-    "data",
-    "EnikolopovPetrovaZhuravskaya2011",
-    "NTV_Individual_Data.dta"
-  )
-)
-
-basic <- c("logpop98", "wage98_ln")
-sociodem <- c("male", "age", "educ1", "married", "consump")
-party_list <- c("Unity", "OVR")
-
-ntv <- ntv %>%
+ntv <- read_dta(data_path) %>%
   mutate(
-    y_vote_Unity = as.integer(vote_Unity == 0),
-    y_vote_OVR   = as.integer(vote_OVR == 1)
+    # Reproduce the Stata initialization and replacement commands.
+    # Missing source outcomes therefore remain coded as zero.
+    y_vote_Unity = as.integer(!is.na(vote_Unity) & vote_Unity == 0),
+    y_vote_OVR = as.integer(!is.na(vote_OVR) & vote_OVR == 1)
   )
 
+# Predict the exposure rate e(X, Z) = P(T = 1 | X, Z).
+# The specification is linear in X and cubic in Z, with selected X-by-Z
+# interactions, as in the Stata trace.
 exposure_fit <- lm(
   Watches_NTV_1999 ~
     male + age + educ1 + married + consump +
@@ -66,128 +70,187 @@ exposure_fit <- lm(
     tvmaxtveloss5050powerA:married +
     tvmaxtveloss5050powerA:consump,
   data = ntv,
-  weights = kishweig
+  weights = kishweig,
+  na.action = na.exclude
 )
 
+# Stata's predict leaves observations outside the estimation sample missing.
 ntv$phat <- clip01(predict(exposure_fit, newdata = ntv))
 
 mte_grid <- seq(0.40, 0.60, by = 0.01)
 
-marginal_effect_at_phat <- function(fit, data) {
-
+# Reproduce margins, dydx(phat) at(phat = ...): calculate each observation's
+# derivative and then average it using kishweig over the model sample.
+marginal_effect_at_phat <- function(fit, data, grid = mte_grid) {
   b <- coef(fit)
+  estimation_sample <- rownames(data) %in% rownames(model.frame(fit))
 
-  vapply(mte_grid, function(v) {
+  vapply(grid, function(v) {
+    derivative <- rep(0, nrow(data))
 
-    d <- rep(0, nrow(data))
-
-    d <- d + ifelse("phat" %in% names(b), b[["phat"]], 0)
-    d <- d + ifelse("I(phat^2)" %in% names(b), 2 * b[["I(phat^2)"]] * v, 0)
-    d <- d + ifelse("I(phat^3)" %in% names(b), 3 * b[["I(phat^3)"]] * v^2, 0)
+    derivative <- derivative + ifelse(
+      "phat" %in% names(b),
+      b[["phat"]],
+      0
+    )
+    derivative <- derivative + ifelse(
+      "I(phat^2)" %in% names(b),
+      2 * b[["I(phat^2)"]] * v,
+      0
+    )
+    derivative <- derivative + ifelse(
+      "I(phat^3)" %in% names(b),
+      3 * b[["I(phat^3)"]] * v^2,
+      0
+    )
 
     for (x in c("male", "age", "educ1", "married", "consump")) {
-      term1 <- paste0("phat:", x)
-      term2 <- paste0(x, ":phat")
-      bx <- if (term1 %in% names(b)) {
-        b[[term1]]
-      } else if (term2 %in% names(b)) {
-        b[[term2]]
+      term_names <- c(
+        paste0("phat:", x),
+        paste0(x, ":phat")
+      )
+      matched_term <- term_names[term_names %in% names(b)]
+      interaction_coefficient <- if (length(matched_term) > 0L) {
+        b[[matched_term[[1L]]]]
       } else {
         0
       }
-      d <- d + bx * data[[x]]
+
+      derivative <- derivative + interaction_coefficient * data[[x]]
     }
 
-    weighted.mean(d, data$kishweig, na.rm = TRUE)
+    derivative[!estimation_sample] <- NA_real_
+    weighted_mean_safe(derivative, data$kishweig)
   }, numeric(1))
 }
 
-results_long <- vector("list", length(party_list))
-
-for (party in party_list) {
-
+make_tableD2_column <- function(data, party) {
   y_var <- paste0("y_vote_", party)
   notwatch_var <- paste0("notwatch_vote_", party)
 
-  ntv[[notwatch_var]] <- as.integer(
-    ntv[[y_var]] == 1 &
-      ntv$Watches_NTV_1999 == 0
+  data[[notwatch_var]] <- as.integer(
+    data[[y_var]] == 1 &
+      !is.na(data$Watches_NTV_1999) &
+      data$Watches_NTV_1999 == 0
+  )
+
+  rhs <- paste(
+    c(
+      "male", "age", "educ1", "married", "consump",
+      "logpop98", "wage98_ln",
+      "phat", "I(phat^2)", "I(phat^3)",
+      "phat:male", "phat:age", "phat:educ1",
+      "phat:married", "phat:consump"
+    ),
+    collapse = " + "
   )
 
   y_fit <- lm(
-    as.formula(
-      paste0(
-        y_var,
-        " ~ male + age + educ1 + married + consump + logpop98 + wage98_ln + ",
-        "phat + I(phat^2) + I(phat^3) + ",
-        "phat:male + phat:age + phat:educ1 + phat:married + phat:consump"
-      )
-    ),
-    data = ntv,
-    weights = kishweig
+    as.formula(paste(y_var, "~", rhs)),
+    data = data,
+    weights = kishweig,
+    na.action = na.exclude
   )
 
-  yw_fit <- lm(
-    as.formula(
-      paste0(
-        notwatch_var,
-        " ~ male + age + educ1 + married + consump + logpop98 + wage98_ln + ",
-        "phat + I(phat^2) + I(phat^3) + ",
-        "phat:male + phat:age + phat:educ1 + phat:married + phat:consump"
-      )
-    ),
-    data = ntv,
-    weights = kishweig
+  notwatch_fit <- lm(
+    as.formula(paste(notwatch_var, "~", rhs)),
+    data = data,
+    weights = kishweig,
+    na.action = na.exclude
   )
 
-  num <- marginal_effect_at_phat(y_fit, ntv)
-  den <- 1 + marginal_effect_at_phat(yw_fit, ntv)
+  num <- marginal_effect_at_phat(y_fit, data)
+  den <- 1 + marginal_effect_at_phat(notwatch_fit, data)
+  mpr <- num / den
 
-  results_long[[party]] <- tibble(
-    row = sprintf("v = %.2f", mte_grid),
-    party = party,
-    estimate = num / den
+  # Stata computes rowsum(num) / rowsum(den), not mean(num / den).
+  average_mpr <- sum(num) / sum(den)
+
+  tibble(
+    row = c(
+      "Avg between 0.4 and 0.6",
+      sprintf("v = %.2f", mte_grid)
+    ),
+    value = c(average_mpr, mpr)
   )
 }
 
-tableD2 <- bind_rows(results_long) %>%
-  bind_rows(
-    bind_rows(results_long) %>%
-      group_by(party) %>%
-      summarise(
-        row = "Avg between 0.4 and 0.6",
-        estimate = mean(estimate, na.rm = TRUE),
-        .groups = "drop"
-      )
+unity_results <- make_tableD2_column(ntv, "Unity")
+ovr_results <- make_tableD2_column(ntv, "OVR")
+
+# Raw numeric matrix in the same row/column orientation as the Stata table.
+tableD2_matrix <- unity_results %>%
+  select(row, unity = value) %>%
+  left_join(
+    ovr_results %>%
+      select(row, ovr = value),
+    by = "row"
   ) %>%
-  tidyr::pivot_wider(
-    names_from = party,
-    values_from = estimate
-  ) %>%
-  arrange(
-    ifelse(row == "Avg between 0.4 and 0.6", 0, 1),
-    row
+  transmute(
+    Estimand = row,
+    `Not Vote for Unity` = unity,
+    `Vote for OVR` = ovr
   )
 
+# Display version: Stata reports three decimal places.
+tableD2_data <- tableD2_matrix %>%
+  mutate(
+    across(
+      -Estimand,
+      ~ sprintf("%.3f", .x)
+    )
+  )
+
+stopifnot(
+  nrow(tableD2_matrix) == 22L,
+  tableD2_matrix$Estimand[[1L]] == "Avg between 0.4 and 0.6",
+  identical(
+    tableD2_matrix$Estimand[-1L],
+    sprintf("v = %.2f", mte_grid)
+  )
+)
+
+# Save results using the same output convention as tableD1.R.
 write.csv(
-  tableD2,
-  file.path(results_dir, "tableD2.csv"),
-  row.names = FALSE
+  tableD2_matrix,
+  file = file.path(
+    output_dir,
+    "tableD2_raw.csv"
+  ),
+  row.names = FALSE,
+  na = ""
+)
+
+write.csv(
+  tableD2_data,
+  file = file.path(
+    output_dir,
+    "tableD2_display.csv"
+  ),
+  row.names = FALSE,
+  na = ""
 )
 
 writexl::write_xlsx(
-  tableD2,
-  file.path(results_dir, "tableD2.xlsx")
+  tableD2_matrix,
+  path = file.path(
+    output_dir,
+    "tableD2.xlsx"
+  )
 )
 
-tableD2_tbl <- tt(
-  tableD2,
+tableD2_tex <- tt(
+  tableD2_data,
   caption = "Estimates of Marginal and Average Persuasion Rates"
 )
 
-save_tt(
-  tableD2_tbl,
-  file = file.path(results_dir, "tableD2.tex")
-)
+print(tableD2_tex)
 
-print(tableD2_tbl)
+save_tt(
+  tableD2_tex,
+  output = file.path(
+    output_dir,
+    "tableD2.tex"
+  ),
+  overwrite = TRUE
+)
