@@ -1,72 +1,63 @@
 # ************
-# * SCRIPT:   table4.do
+# * SCRIPT:   table4.R
 # * PURPOSE:  Creates Table 4
 # *
 # * ACKNOWLEDGMENT
-# *       The orginal dataset "publicdata.dta" is from Gerber, Karlan, and Berg an (2009, AEJ Applied).
+# *   The original dataset "publicdata.dta" is from
+# *   Gerber, Karlan, and Bergan (2009, AEJ Applied).
 # ************
-
 
 library(haven)
 library(dplyr)
 library(tibble)
 library(tinytable)
-
-persuasion_dir <- Sys.getenv("PERSUASION_DIR")
-if (persuasion_dir == "") {
-  persuasion_dir <- "."
-}
-
-results_dir <- file.path(persuasion_dir, "results")
-dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
-
-clip01 <- function(x) {
-  pmin(pmax(x, 0), 1)
-}
-
-# ************
-# * SCRIPT:   table4.R
-# * PURPOSE:  Creates Table 4
-# ************
-
+library(here)
 library(sandwich)
 library(lmtest)
 library(AER)
 library(numDeriv)
 
-# Original Stata source: trace_table4.txt.
+output_dir <- here::here("output")
+data_path <- here::here(
+  "data",
+  "GerberKarlanBergan2009",
+  "publicdata.dta"
+)
+
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+if (!file.exists(data_path)) {
+  stop(
+    "Data file not found: ",
+    data_path,
+    "\nRun this script from within the replication project, ",
+    "with data/GerberKarlanBergan2009/publicdata.dta present."
+  )
+}
+
+clip01 <- function(x) {
+  pmin(pmax(x, 0), 1)
+}
+
 # The Stata code manually constructs ITT, APR, LPR, and LATE bounds.
 # This R version follows those formulas directly. For suest/nlcom sections,
 # we use numerical delta-method SEs with HC1 covariance matrices.
 
-gkb <- read_dta(
-  file.path(
-    persuasion_dir,
-    "data",
-    "GerberKarlanBergan2009",
-    "publicdata.dta"
-  )
-)
-
-gkb <- gkb %>%
-  filter(times != 1) %>%
-  mutate(
-    data_avail = as.integer(
-      survey == 1 &
-        !is.na(voteddem_all) &
-        !is.na(readsome)
-    )
+gkb <- read_dta(data_path) %>%
+  filter(
+    .data$times != 1,
+    !is.na(.data$voteddem_all),
+    !is.na(.data$readsome)
   ) %>%
-  filter(data_avail == 1) %>%
   mutate(
     case_id = row_number(),
-    outcome = voteddem_all,
-    treat = readsome,
-    instr = post,
-    a_u = outcome * treat + (1 - treat),
-    b_l = outcome * (1 - treat),
-    a_u2 = outcome + (1 - treat),
-    b_l2 = outcome - treat
+    outcome = .data$voteddem_all,
+    treat = .data$readsome,
+    instr = .data$post,
+    a_u = .data$outcome * .data$treat + (1 - .data$treat),
+    b_l = .data$outcome * (1 - .data$treat),
+    a_u2 = .data$outcome + (1 - .data$treat),
+    b_l2 = .data$outcome - .data$treat
   )
 
 alpha_level <- 0.2
@@ -106,7 +97,7 @@ delta_nlcom <- function(fit, f) {
 
 results <- list()
 
-# ITT estimate on outcome.
+# ITT estimate on outcome
 itt_y_fit <- lm(outcome ~ instr, data = gkb)
 itt_y <- robust_coef(itt_y_fit, "instr")
 
@@ -118,7 +109,7 @@ results[["ITT outcome"]] <- tibble(
   upper = min(1, itt_y["estimate"] + cv_cns2 * itt_y["se"])
 )
 
-# ITT estimate on treatment.
+# ITT estimate on treatment
 itt_t_fit <- lm(treat ~ instr, data = gkb)
 itt_t <- robust_coef(itt_t_fit, "instr")
 
@@ -297,65 +288,218 @@ results[["LATE YZ"]] <- tibble(
 )
 
 # APR conditional on voting without persuasive treatment.
-# Stata uses voted, which is expected to exist in publicdata.dta.
-if ("voted" %in% names(gkb)) {
+gkb <- gkb %>%
+  mutate(yt00 = (1 - .data$voted) * (1 - .data$treat))
 
-  gkb <- gkb %>%
-    mutate(yt00 = (1 - voted) * (1 - treat))
-
-  multi_point <- function(data) {
-    fit_num <- lm(outcome ~ instr, data = data)
-    fit_den <- lm(yt00 ~ instr, data = data)
-    b_num <- coef(fit_num)
-    b_den <- coef(fit_den)
-    b_num[["instr"]] /
-      (1 - b_num[["(Intercept)"]] - b_den[["(Intercept)"]])
-  }
-
-  multi_lower_bound_coef <- multi_point(gkb)
-
-  set.seed(12345)
-  multi_boot <- replicate(
-    500,
-    {
-      idx <- sample.int(nrow(gkb), replace = TRUE)
-      multi_point(gkb[idx, ])
-    }
-  )
-
-  multi_lower_bound_se <- sd(multi_boot, na.rm = TRUE)
-
-  results[["APR conditional"]] <- tibble(
-    estimand = "APR conditional on voting without treatment",
-    lower = max(0, multi_lower_bound_coef - cv_cns1_adj * multi_lower_bound_se),
-    estimate_lower = multi_lower_bound_coef,
-    estimate_upper = 1,
-    upper = 1
-  )
-} else {
-  # Uncertain revision: the trace references variable voted. If the R copy of
-  # publicdata.dta does not contain voted, this row is omitted rather than
-  # silently substituting another variable.
-  warning("Variable `voted` not found; omitted conditional APR row.")
+multi_point <- function(data) {
+  fit_num <- lm(outcome ~ instr, data = data)
+  fit_den <- lm(yt00 ~ instr, data = data)
+  b_num <- coef(fit_num)
+  b_den <- coef(fit_den)
+  b_num[["instr"]] /
+    (1 - b_num[["(Intercept)"]] - b_den[["(Intercept)"]])
 }
 
-table4_data <- bind_rows(results) %>%
-  mutate(across(where(is.numeric), ~ round(.x, 4)))
+multi_lower_bound_coef <- multi_point(gkb)
 
-table4 <- tt(
-  table4_data,
-  caption = "Table 4: Persuasion Rate Bounds and Related Estimands"
+set.seed(12345)
+multi_boot <- replicate(
+  500,
+  {
+    idx <- sample.int(nrow(gkb), replace = TRUE)
+    multi_point(gkb[idx, ])
+  }
 )
 
-save_tt(
-  table4,
-  file = file.path(results_dir, "table4.tex")
+multi_lower_bound_se <- sd(multi_boot, na.rm = TRUE)
+
+results[["APR conditional"]] <- tibble(
+  estimand = "APR conditional on voting without treatment",
+  lower = max(0, multi_lower_bound_coef - cv_cns1_adj * multi_lower_bound_se),
+  estimate_lower = multi_lower_bound_coef,
+  estimate_upper = 1,
+  upper = 1
+)
+
+table4_results <- bind_rows(results)
+
+
+stopifnot(nrow(table4_results) == 11L)
+
+# Preserve all 11 numeric results for verification and downstream use.
+table4_raw <- table4_results %>%
+  transmute(
+    Estimand = estimand,
+    `Estimate (LB)` = estimate_lower,
+    `Estimate (UB)` = estimate_upper,
+    `CI (LB)` = lower,
+    `CI (UB)` = upper
+  )
+
+# Reformat the table like the paper
+fmt_num <- function(x) {
+  x <- as.numeric(x)
+
+  if (is.na(x)) {
+    return("")
+  }
+
+  if (isTRUE(all.equal(x, 0))) {
+    return("0")
+  }
+
+  if (isTRUE(all.equal(x, 1))) {
+    return("1")
+  }
+
+  out <- sprintf("%.4f", x)
+  out <- sub("^0\\.", ".", out)
+  out <- sub("^-0\\.", "-.", out)
+  out
+}
+
+fmt_interval <- function(lb, ub) {
+  paste0("[", fmt_num(lb), ", ", fmt_num(ub), "]")
+}
+
+fmt_ci <- function(lb, ub) {
+  paste0("{", fmt_num(lb), "–", fmt_num(ub), "}")
+}
+
+fmt_point_cell <- function(est, lb, ub) {
+  paste0(
+    fmt_num(est),
+    "<br>",
+    fmt_ci(lb, ub)
+  )
+}
+
+fmt_interval_cell <- function(est_lb, est_ub, ci_lb, ci_ub) {
+  paste0(
+    fmt_interval(est_lb, est_ub),
+    "<br>",
+    fmt_ci(ci_lb, ci_ub)
+  )
+}
+
+get_result <- function(name) {
+  row <- table4_results %>%
+    filter(.data$estimand == name)
+
+  stopifnot(nrow(row) == 1L)
+  row
+}
+
+itt <- get_result("ITT: outcome")
+
+avg_1 <- get_result("APR: Y,T,Z observed")
+avg_2 <- get_result("APR: Y,T and Y,Z observed")
+avg_3 <- get_result("APR: Y,Z observed")
+
+late_1 <- get_result("LATE")
+late_3 <- get_result("LATE: Y,Z observed")
+
+local_1 <- get_result("LPR: Y,T,Z observed")
+local_2 <- get_result("LPR: Y,T and Y,Z observed")
+local_3 <- get_result("LPR: Y,Z observed")
+
+# Publication-facing Table 4:
+# estimates or identified sets first, confidence intervals underneath.
+table4_display <- tibble(
+  Parameter = c(
+    "ITT",
+    "\u03b8_avg",
+    "LATE",
+    "\u03b8_local"
+  ),
+
+  `(Y_i, T_i, Z_i)` = c(
+    "",
+    fmt_interval_cell(
+      avg_1$estimate_lower,
+      avg_1$estimate_upper,
+      avg_1$lower,
+      avg_1$upper
+    ),
+    fmt_point_cell(
+      late_1$estimate_lower,
+      late_1$lower,
+      late_1$upper
+    ),
+    fmt_point_cell(
+      local_1$estimate_lower,
+      local_1$lower,
+      local_1$upper
+    )
+  ),
+
+  `(Y_i, Z_i) and (T_i, Z_i)` = c(
+    fmt_point_cell(
+      itt$estimate_lower,
+      itt$lower,
+      itt$upper
+    ),
+    fmt_interval_cell(
+      avg_2$estimate_lower,
+      avg_2$estimate_upper,
+      avg_2$lower,
+      avg_2$upper
+    ),
+    "",
+    fmt_interval_cell(
+      local_2$estimate_lower,
+      local_2$estimate_upper,
+      local_2$lower,
+      local_2$upper
+    )
+  ),
+
+  `(Y_i, Z_i) Only` = c(
+    "",
+    fmt_interval_cell(
+      avg_3$estimate_lower,
+      avg_3$estimate_upper,
+      avg_3$lower,
+      avg_3$upper
+    ),
+    fmt_interval_cell(
+      late_3$estimate_lower,
+      late_3$estimate_upper,
+      late_3$lower,
+      late_3$upper
+    ),
+    fmt_interval_cell(
+      local_3$estimate_lower,
+      local_3$estimate_upper,
+      local_3$lower,
+      local_3$upper
+    )
+  )
 )
 
 write.csv(
-  table4_data,
-  file.path(results_dir, "table4.csv"),
-  row.names = FALSE
+  table4_raw,
+  file = file.path(output_dir, "table4_raw.csv"),
+  row.names = FALSE,
+  na = ""
 )
 
-print(table4)
+write.csv(
+  table4_display,
+  file = file.path(output_dir, "table4_display.csv"),
+  row.names = FALSE,
+  na = ""
+)
+
+table4_tex <- tt(
+  table4_display,
+  caption = "Estimates of Key Parameters"
+)
+
+print(table4_tex)
+
+save_tt(
+  table4_tex,
+  output = file.path(output_dir, "table4.tex"),
+  overwrite = TRUE
+)
