@@ -1,100 +1,121 @@
 # ************
-# * SCRIPT:   tableE1.do
+# * SCRIPT:   tableE1.R
 # * PURPOSE:  Creates Table E1
 # *
 # * ACKNOWLEDGMENT
-# *       The summary statistic used here is from Landry, Lange, List, Price, and Rupp (QJE, 2006).
-# *   Specifically, the first three rows of Table II in their paper provide information to compute
-# *   the following quantities:
-# *   - P(Y=1|Z=1) is obtained by (# of households that contributed)/(Total households approached);
-# *   - e(1) = P(Z=1) is obtained by (Total households home)/(Total households approached).
+# *       The summary statistics used here are from Landry, Lange, List,
+# *       Price, and Rupp (QJE, 2006).
+# *
+# * NOTES
+# *       The first three rows of Table II in the original paper provide
+# *       the counts used to calculate:
+# *       - P(Y=1|Z=1) = households contributing / households approached;
+# *       - e(1)       = households home / households approached.
 # ************
 
-library(haven)
 library(dplyr)
 library(tibble)
 library(tinytable)
+library(here)
 
-persuasion_dir <- Sys.getenv("PERSUASION_DIR")
-if (persuasion_dir == "") {
-  persuasion_dir <- "."
-}
+output_dir <- here::here("output")
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-results_dir <- file.path(persuasion_dir, "results")
-dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
-
-clip01 <- function(x) {
-  pmin(pmax(x, 0), 1)
-}
-
-# ************
-# * SCRIPT:   tableE1.R
-# * PURPOSE:  Creates Table E1
-# ************
-
-# Original Stata source: trace_tableE1.txt.
-# This table uses published summary counts, not microdata.
-
-landry_et_al <- matrix(
-  c(
-    1186, 446, 113,
-    1282, 453,  67,
-    963, 363, 165,
-    1402, 493, 177
-  ),
-  ncol = 3,
-  byrow = TRUE
+# Published summary counts in the same order as the Stata matrix:
+# households approached, households home, households contributing.
+landry_counts <- tribble(
+  ~Treatment,                    ~approached, ~home, ~contributed,
+  "VCM",                               1186,   446,         113,
+  "VCM with seed money",               1282,   453,          67,
+  "Single-prize lottery",               963,   363,         165,
+  "Multiple-prize lottery",            1402,   493,         177
 )
 
-# Stata: append "All" row by summing rows.
-landry_et_al <- rbind(
-  landry_et_al,
-  colSums(landry_et_al)
+# Stata appends an "All" row by summing the four treatment rows first,
+# and then computes all ratios from those pooled counts.
+landry_counts <- bind_rows(
+  landry_counts,
+  landry_counts %>%
+    summarise(
+      Treatment = "All",
+      across(c(approached, home, contributed), sum)
+    )
 )
 
-results <- vector("list", nrow(landry_et_al))
-
-for (j in seq_len(nrow(landry_et_al))) {
-
-  pr_y1_z1 <- landry_et_al[j, 3] / landry_et_al[j, 1]
-  pr_z1    <- landry_et_al[j, 2] / landry_et_al[j, 1]
-
-  # Stata formulas:
-  # theta_lb    = P(Y=1|Z=1)
-  # theta_ub    = P(Y=1|Z=1) + 1 - P(Z=1)
-  # theta_local = P(Y=1|Z=1) / P(Z=1)
-  results[[j]] <- tibble(
-    `P(Y=1|Z=1)` = pr_y1_z1,
-    `e(1)`       = pr_z1,
-    `APR (LB)`   = pr_y1_z1,
-    `APR (UB)`   = pr_y1_z1 + 1 - pr_z1,
-    LPR          = pr_y1_z1 / pr_z1
+# Reproduce the five quantities in the Stata trace.
+tableE1_matrix <- landry_counts %>%
+  transmute(
+    Treatment,
+    `P(Y=1|Z=1)` = 100 * contributed / approached,
+    `e(1)` = 100 * home / approached,
+    `APR (LB)` = 100 * contributed / approached,
+    `APR (UB)` = 100 * (
+      contributed / approached + 1 - home / approached
+    ),
+    LPR = 100 * contributed / home
   )
-}
 
-tableE1_data <- bind_rows(results) * 100
+# Display version: Stata multiplies by 100 and reports one decimal place.
+tableE1_data <- tableE1_matrix %>%
+  mutate(
+    across(
+      -Treatment,
+      ~ sprintf("%.1f", .x)
+    )
+  )
 
-tableE1_data <- bind_cols(
-  Treatment = c(
-    "VCM",
-    "VCM with seed money",
-    "Single-prize lottery",
-    "Multiple-prize lottery",
-    "All"
+stopifnot(
+  nrow(tableE1_matrix) == 5L,
+  identical(
+    tableE1_matrix$Treatment,
+    c(
+      "VCM",
+      "VCM with seed money",
+      "Single-prize lottery",
+      "Multiple-prize lottery",
+      "All"
+    )
   ),
-  as_tibble(tableE1_data)
+  identical(
+    unname(round(as.numeric(tableE1_matrix[5, -1]), 1)),
+    c(10.8, 36.3, 10.8, 74.5, 29.7)
+  )
 )
 
-tableE1_data[-1] <- lapply(tableE1_data[-1], round, digits = 1)
+# Save the raw numeric and formatted display data using the same convention
+# as tableD1.R.
+write.csv(
+  tableE1_matrix,
+  file = file.path(
+    output_dir,
+    "tableE1_raw.csv"
+  ),
+  row.names = FALSE,
+  na = ""
+)
 
-tableE1 <- tt(
+write.csv(
   tableE1_data,
-  caption = "Persuasive Effect by Treatment in Landry et al. (2006)"
+  file = file.path(
+    output_dir,
+    "tableE1_display.csv"
+  ),
+  row.names = FALSE,
+  na = ""
 )
+
+tableE1_tex <- tt(
+  tableE1_data,
+  caption = "Table E1. Persuasive Effect by Treatment in Landry et al. (2006)"
+)
+
+print(tableE1_tex)
 
 save_tt(
-  tableE1,
-  file = file.path(results_dir, "tableE1.tex")
+  tableE1_tex,
+  output = file.path(
+    output_dir,
+    "tableE1.tex"
+  ),
+  overwrite = TRUE
 )
-
-print(tableE1)
